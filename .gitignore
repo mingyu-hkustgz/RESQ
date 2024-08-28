@@ -1,0 +1,17 @@
+__pycache__
+.idea
+.vscode
+/data
+/DATA
+/cmake-build-debug
+/results
+/logger
+/figure
+
+*.fvecs
+*.ivecs
+*.bin
+*.png
+*.html
+*.pdf
+*.pt
