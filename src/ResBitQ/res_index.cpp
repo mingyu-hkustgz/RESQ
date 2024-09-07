@@ -1,5 +1,5 @@
-#define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
+#define FAST_SCAN
 
 #include <iostream>
 #include <cstdio>
@@ -10,7 +10,7 @@
 
 #include "matrix.h"
 #include "utils.h"
-#include "ivf_rabitq.h"
+#include "ivf_res.h"
 
 using namespace std;
 
@@ -57,56 +57,41 @@ int main(int argc, char *argv[]) {
     char index_path[256] = "";
     char centroid_path[256] = "";
     char x0_path[256] = "";
-    char dist_to_centroid_path[256] = "";
     char cluster_id_path[256] = "";
     char binary_path[256] = "";
+    char dist_to_centroid_path[256] = "";
 
-    sprintf(data_path, "%s%s_base.fvecs", source, dataset);
+    sprintf(data_path, "%s%s_proj.fvecs", source, dataset);
     Matrix<float> X(data_path);
 
-    sprintf(centroid_path, "%sRandCentroid_C%d_B%d.fvecs", source, numC, bit);
+    sprintf(centroid_path, "%sRESCentroid_C%d_B%d.fvecs", source, numC, bit);
     Matrix<float> C(centroid_path);
 
-    sprintf(x0_path, "%sx0_C%d_B%d.fvecs", source, numC, bit);
+    sprintf(x0_path, "%sRES_x0_C%d_B%d.fvecs", source, numC, bit);
     Matrix<float> x0(x0_path);
 
-    sprintf(dist_to_centroid_path, "%s%s_dist_to_centroid_%d.fvecs", source, dataset, numC);
+    sprintf(dist_to_centroid_path, "%sp%s_dist_to_centroid_%d.fvecs", source, dataset, numC);
     Matrix<float> dist_to_centroid(dist_to_centroid_path);
 
-    sprintf(cluster_id_path, "%s%s_cluster_id_%d.ivecs", source, dataset, numC);
-    Matrix <uint32_t> cluster_id(cluster_id_path);
+    sprintf(cluster_id_path, "%sp%s_cluster_id_%d.ivecs", source, dataset, numC);
+    Matrix<uint32_t> cluster_id(cluster_id_path);
 
-    sprintf(binary_path, "%sRandNet_C%d_B%d.Ivecs", source, numC, bit);
-    Matrix <uint64_t> binary(binary_path);
+    sprintf(binary_path, "%sRES_Rand_C%d_B%d.Ivecs", source, numC, bit);
+    Matrix<uint64_t> binary(binary_path);
 
-    sprintf(index_path, "%sivfrabitq%d_B%d.index", source, numC, bit);
+    sprintf(index_path, "%sivf_res%d_B%d.index", source, numC, bit);
     std::cerr << "Loading Succeed!" << std::endl << std::endl;
     // ==============================================================================================================
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
     if (str_data == "sift") {
-        const uint32_t BB = 128, DIM = 128;
-        IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
+        const uint32_t BB = 64, DIM = 128;
+        IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
         ivf.save(index_path);
     }
     if (str_data == "gist") {
-        const uint32_t BB = 960, DIM = 960;
-        IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
-        ivf.save(index_path);
-    }
-    if (str_data == "pgist") {
-        const uint32_t BB = 512, DIM = 512;
-        IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
-        ivf.save(index_path);
-    }
-    if (str_data == "ppgist") {
-        const uint32_t BB = 256, DIM = 256;
-        IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
-        ivf.save(index_path);
-    }
-    if (str_data == "pppgist") {
-        const uint32_t BB = 128, DIM = 128;
-        IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
+        const uint32_t BB = 128, DIM = 960;
+        IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
         ivf.save(index_path);
     }
 

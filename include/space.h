@@ -191,4 +191,62 @@ inline float sqr_dist(float *d, float *q) {
     return ret;
 }
 
+template<uint32_t L>
+inline float ip_sim(float *d, float *q) {
+    float PORTABLE_ALIGN32 TmpRes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    constexpr uint32_t num_blk16 = L >> 4;
+    constexpr uint32_t l = L & 0b1111;
+
+    __m256 v1, v2;
+    __m256 sum = _mm256_set1_ps(0);
+    for (int i = 0; i < num_blk16; i++) {
+        v1 = _mm256_loadu_ps(d);
+        v2 = _mm256_loadu_ps(q);
+        d += 8;
+        q += 8;
+        sum = _mm256_add_ps(sum, _mm256_mul_ps(v1, v2));
+
+        v1 = _mm256_loadu_ps(d);
+        v2 = _mm256_loadu_ps(q);
+        d += 8;
+        q += 8;
+        sum = _mm256_add_ps(sum, _mm256_mul_ps(v1, v2));
+    }
+    for (int i = 0; i < l / 8; i++) {
+        v1 = _mm256_loadu_ps(d);
+        v2 = _mm256_loadu_ps(q);
+        d += 8;
+        q += 8;
+        sum = _mm256_add_ps(sum, _mm256_mul_ps(v1, v2));
+    }
+    _mm256_store_ps(TmpRes, sum);
+
+    float ret = TmpRes[0] + TmpRes[1] + TmpRes[2] + TmpRes[3] + TmpRes[4] + TmpRes[5] + TmpRes[6] + TmpRes[7];
+
+    for (int i = 0; i < l % 8; i++) {
+        ret += (*q) * (*d);
+        d++;
+        q++;
+    }
+    return ret;
+}
+
+template<uint32_t L>
+float vec_sqr(const float *q) {
+    float sqr = 0;
+    for (int i = 0; i < L; i++) {
+        sqr += q[i] * q[i];
+    }
+    return sqr;
+}
+
+float naive_l2_dist(float *q, float *p, int d) {
+    float sqr = 0;
+    for (int i = 0; i < d; i++) {
+        sqr += (q[i] - p[i]) * (q[i] - p[i]);
+    }
+    return sqr;
+}
+
+
 #endif //DEEPBIT_SPACE_H

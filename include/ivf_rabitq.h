@@ -402,13 +402,17 @@ void IVFRN<D, B>::load(char * filename){
     packed_start = NULL;
     packed_code  = NULL;
 #endif
+    double ave_error = 0;
     for(int i=0;i<N;i++){
         long double x_x0 = (long double) dist_to_c[i] / x0[i];
         fac[i].sqr_x = dist_to_c[i] * dist_to_c[i];
         fac[i].error = 2 * max_x1 * std::sqrt(x_x0 * x_x0 - dist_to_c[i] * dist_to_c[i]);
+        ave_error += fac[i].error;
         fac[i].factor_ppc = -2 / fac_norm * x_x0  * ((float)space.popcount(binary_code + i * B / 64) * 2 - B);
         fac[i].factor_ip = -2 / fac_norm * x_x0;
     }
+    ave_error /= N;
+    std::cerr<<"ave error:: "<<ave_error<<std::endl;
     input.close();
 }
 

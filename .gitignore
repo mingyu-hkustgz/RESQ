@@ -8,6 +8,10 @@ __pycache__
 /logger
 /figure
 
+/script/DeepBiT/
+/script/OptBit/
+/script/SparseBit/
+
 *.fvecs
 *.ivecs
 *.bin

@@ -4,24 +4,28 @@ import struct
 import os
 from utils import *
 import argparse
+
 source = './DATA'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='random projection')
-    parser.add_argument('-d', '--dataset', help='dataset', default='sift')
+    parser.add_argument('-d', '--dataset', help='dataset', default='gist')
+    parser.add_argument('-b', '--bits', help='quantized bits', default=128)
     args = vars(parser.parse_args())
     dataset = args['dataset']
+    bits = int(args['bits'])
 
     print(f"Clustering - {dataset}")
     # path
     path = os.path.join(source, dataset)
-    data_path = os.path.join(path, f'{dataset}_base.fvecs')
+    data_path = os.path.join(path, f'{dataset}_proj.fvecs')
     X = read_fvecs(data_path)
+    X = X[:, :bits]
     D = X.shape[1]
     K = 4096
-    centroids_path = os.path.join(path, f'{dataset}_centroid_{K}.fvecs')
-    dist_to_centroid_path = os.path.join(path, f'{dataset}_dist_to_centroid_{K}.fvecs')
-    cluster_id_path = os.path.join(path, f'{dataset}_cluster_id_{K}.ivecs')
+    centroids_path = os.path.join(path, f'p{dataset}_centroid_{K}.fvecs')
+    dist_to_centroid_path = os.path.join(path, f'p{dataset}_dist_to_centroid_{K}.fvecs')
+    cluster_id_path = os.path.join(path, f'p{dataset}_cluster_id_{K}.ivecs')
 
     # cluster data vectors
     index = faiss.index_factory(D, f"IVF{K},Flat")

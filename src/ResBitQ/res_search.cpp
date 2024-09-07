@@ -10,7 +10,7 @@
 #include <cmath>
 #include <matrix.h>
 #include <utils.h>
-#include <ivf_rabitq.h>
+#include "ivf_res.h"
 #include <getopt.h>
 #include "space.h"
 
@@ -21,8 +21,9 @@ const int MAXK = 100;
 long double rotation_time = 0;
 
 template<uint32_t D, uint32_t B>
-void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float> &X, const Matrix<unsigned> &G,
-          const IVFRN<D, B> &ivf, int k) {
+void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float> &X,
+          const Matrix<unsigned> &G,
+          const IVFRES<D, B> &ivf, int k) {
     float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
     struct rusage run_start, run_end;
 
@@ -69,7 +70,7 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float
         cout << "All Distance Count " << all_dist_count << endl;
         cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
 #endif
-        cout << "nprobe = " << nprobe << " k = " << k <<" Query Bits "<< B_QUERY << endl;
+        cout << "nprobe = " << nprobe << " k = " << k << endl;
         cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
         cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
 
@@ -128,38 +129,40 @@ int main(int argc, char *argv[]) {
     Matrix<float> Q(query_path);
 
     char data_path[256] = "";
-    sprintf(data_path, "%s%s_base.fvecs", source, dataset);
+    sprintf(data_path, "%s%s_proj.fvecs", source, dataset);
     Matrix<float> X(data_path);
 
     char groundtruth_path[256] = "";
     sprintf(groundtruth_path, "%s%s_groundtruth.ivecs", source, dataset);
     Matrix<unsigned> G(groundtruth_path);
 
-    char transformation_path[256] = "";
-    sprintf(transformation_path, "%sP_C%d_B%d.fvecs", source, numC, bit);
-    Matrix<float> P(transformation_path);
+    char random_matrix_path[256] = "";
+    sprintf(random_matrix_path, "%sRESP_C%d_B%d.fvecs", source, numC, bit);
+    Matrix<float> P(random_matrix_path);
+
+    char PCA_matrix_path[256] = "";
+    sprintf(PCA_matrix_path, "%sgist_pca.fvecs", source);
+    Matrix<float> PCA(PCA_matrix_path);
 
     char index_path[256] = "";
-    sprintf(index_path, "%sivfrabitq%d_B%d.index", source, numC, bit);
+    sprintf(index_path, "%sivf_res%d_B%d.index", source, numC, bit);
     std::cerr << index_path << std::endl;
-#if defined(FAST_SCAN)
+
     char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivfrabitq%d_B%d_fast_scan.log", result_path, dataset, numC, bit);
-#elif defined(SCAN)
-    char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivfrabitq%d_B%d_scan.log", result_path, dataset, numC, bit);
-#endif
+    sprintf(result_file_view, "%s%s_ivfres%d_B%d_fast_scan.log", result_path, dataset, numC, bit);
     std::cerr << "Loading Succeed!" << std::endl;
     // ================================================================================================================================
 
 
-    freopen(result_file_view, "a", stdout);
+    //freopen(result_file_view, "a", stdout);
     float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
     struct rusage run_start, run_end;
     GetCurTime(&run_start);
-
-    Matrix<float> RandQ(Q.n, bit, Q);
-    RandQ = mul(RandQ, P);
+    std::cout << "begin Matrix Operation" << std::endl;
+    Matrix<float> PCAQ(Q.n, Q.d, Q);
+    PCAQ = mul(PCAQ, PCA);
+    auto TEMP_Q = resize_matrix(PCAQ, PCAQ.n, bit);
+    auto RandQ = mul(TEMP_Q, P);
 
     GetCurTime(&run_end);
     GetTime(&run_start, &run_end, &usr_t, &sys_t);
@@ -167,35 +170,18 @@ int main(int argc, char *argv[]) {
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
     if (str_data == "sift") {
-        const uint32_t BB = 128, DIM = 128;
-        IVFRN<DIM, BB> ivf;
+        const uint32_t BB = 64, DIM = 128;
+        IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        test(Q, RandQ, X, G, ivf, subk);
+        test(PCAQ, RandQ, X, G, ivf, subk);
     }
     if (str_data == "gist") {
-        const uint32_t BB = 960, DIM = 960;
-        IVFRN<DIM, BB> ivf;
+        const uint32_t BB = 128, DIM = 960;
+        IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        test(Q, RandQ, X, G, ivf, subk);
+        test(PCAQ, RandQ, X, G, ivf, subk);
     }
-    if (str_data == "pgist") {
-        const uint32_t BB = 512, DIM = 512;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
-        test(Q, RandQ, X, G, ivf, subk);
-    }
-    if (str_data == "ppgist") {
-        const uint32_t BB = 256, DIM = 256;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
-        test(Q, RandQ, X, G, ivf, subk);
-    }
-    if (str_data == "pppgist") {
-        const uint32_t BB = 128, DIM = 128;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
-        test(Q, RandQ, X, G, ivf, subk);
-    }
+
 
     return 0;
 }

@@ -5,6 +5,12 @@ for data in "${datasets[@]}"; do
     B=128
   elif [ $data == "gist" ]; then
     B=960
+  elif [ $data == "pgist" ]; then
+    B=512
+  elif [ $data == "ppgist" ]; then
+    B=256
+  elif [ $data == "pppgist" ]; then
+    B=128
   fi
   python ./script/RaBitQ/ivf.py -d ${data}
   python ./script/RaBitQ/rabitq.py -d ${data}
