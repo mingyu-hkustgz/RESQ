@@ -132,56 +132,62 @@ int main(int argc, char *argv[]) {
     sprintf(data_path, "%s%s_base.fvecs", source, dataset);
     Matrix<float> X(data_path);
 
-    char groundtruth_path[256] = "";
-    sprintf(groundtruth_path, "%s%s_groundtruth.ivecs", source, dataset);
-    Matrix<unsigned> G(groundtruth_path);
+//    char groundtruth_path[256] = "";
+//    sprintf(groundtruth_path, "%s%s_groundtruth.ivecs", source, dataset);
+//    Matrix<unsigned> G(groundtruth_path);
+//
+//    char random_matrix_path[256] = "";
+//    sprintf(random_matrix_path, "%sRESP_C%d_B%d.fvecs", source, numC, bit);
+//    Matrix<float> P(random_matrix_path);
+//
+//    char PCA_matrix_path[256] = "";
+//    sprintf(PCA_matrix_path, "%sgist_pca.fvecs", source);
+//    Matrix<float> PCA(PCA_matrix_path);
+//
+//    char index_path[256] = "";
+//    sprintf(index_path, "%sivf_res%d_B%d.index", source, numC, bit);
+//    std::cerr << index_path << std::endl;
 
-    char random_matrix_path[256] = "";
-    sprintf(random_matrix_path, "%sRESP_C%d_B%d.fvecs", source, numC, bit);
-    Matrix<float> P(random_matrix_path);
-
-    char PCA_matrix_path[256] = "";
-    sprintf(PCA_matrix_path, "%sgist_pca.fvecs", source);
-    Matrix<float> PCA(PCA_matrix_path);
-
-    char index_path[256] = "";
-    sprintf(index_path, "%sivf_res%d_B%d.index", source, numC, bit);
-    std::cerr << index_path << std::endl;
-
-    char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivfres%d_B%d_fast_scan.log", result_path, dataset, numC, bit);
-    std::cerr << "Loading Succeed!" << std::endl;
-    // ================================================================================================================================
-
-
-    //freopen(result_file_view, "a", stdout);
-    float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
-    struct rusage run_start, run_end;
-    GetCurTime(&run_start);
-    std::cout << "begin Matrix Operation" << std::endl;
-    Matrix<float> PCAQ(Q.n, Q.d, Q);
-    PCAQ = mul(PCAQ, PCA);
-    auto TEMP_Q = resize_matrix(PCAQ, PCAQ.n, bit);
-    auto RandQ = mul(TEMP_Q, P);
+//    char result_file_view[256] = "";
+//    sprintf(result_file_view, "%s%s_ivfres%d_B%d_fast_scan.log", result_path, dataset, numC, bit);
+//    std::cerr << "Loading Succeed!" << std::endl;
+//    // ================================================================================================================================
 
 
-    GetCurTime(&run_end);
-    GetTime(&run_start, &run_end, &usr_t, &sys_t);
-    rotation_time = usr_t * 1e6 / Q.n;
-    std::string str_data(dataset);
-    std::cerr << "dataset:: " << str_data << std::endl;
-    if (str_data == "sift") {
-        const uint32_t BB = 64, DIM = 128;
-        IVFRES<DIM, BB> ivf;
-        ivf.load(index_path);
-        test(PCAQ, RandQ, X, G, ivf, subk);
-    }
-    if (str_data == "gist") {
-        const uint32_t BB = 128, DIM = 960;
-        IVFRES<DIM, BB> ivf;
-        ivf.load(index_path);
-        test(PCAQ, RandQ, X, G, ivf, subk);
-    }
+//    for (int i = 0; i < 100; i++) {
+//        std::cerr << ip_sim<127>(X.data + i * X.d, Q.data + i * X.d) << " ";
+//        std::cerr << mask_last_ip_sim127<127>(X.data + i * X.d, Q.data + i * X.d) << endl;
+//    }
+
+
+//    //freopen(result_file_view, "a", stdout);
+//    float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
+//    struct rusage run_start, run_end;
+//    GetCurTime(&run_start);
+//    std::cout << "begin Matrix Operation" << std::endl;
+//    Matrix<float> PCAQ(Q.n, Q.d, Q);
+//    PCAQ = mul(PCAQ, PCA);
+//    auto TEMP_Q = resize_matrix(PCAQ, PCAQ.n, bit);
+//    auto RandQ = mul(TEMP_Q, P);
+//
+//
+//    GetCurTime(&run_end);
+//    GetTime(&run_start, &run_end, &usr_t, &sys_t);
+//    rotation_time = usr_t * 1e6 / Q.n;
+//    std::string str_data(dataset);
+//    std::cerr << "dataset:: " << str_data << std::endl;
+//    if (str_data == "sift") {
+//        const uint32_t BB = 64, DIM = 128;
+//        IVFRES<DIM, BB> ivf;
+//        ivf.load(index_path);
+//        test(PCAQ, RandQ, X, G, ivf, subk);
+//    }
+//    if (str_data == "gist") {
+//        const uint32_t BB = 128, DIM = 960;
+//        IVFRES<DIM, BB> ivf;
+//        ivf.load(index_path);
+//        test(PCAQ, RandQ, X, G, ivf, subk);
+//    }
 
 
     return 0;

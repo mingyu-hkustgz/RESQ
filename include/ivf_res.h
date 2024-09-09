@@ -41,6 +41,8 @@ public:
     uint32_t *id;                     // N of size_t the ids of the objects in a cluster
     float *dist_to_c;                // N of floats distance to the centroids (not the squared distance)
     float *u;                        // B of floats random numbers sampled from the uniform distribution [0,1]
+    float *var_;                     // variance of each dimension
+    float *mean_;                    // mean of each dimension
 
     uint64_t *binary_code;           // (B / 64) * N of 64-bit uint64_t
     uint8_t *packed_code;            // packed code with the batch size of 32 vectors
@@ -134,7 +136,7 @@ void IVFRES<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k,
         accumulate<B>(nblk_remain, packed_code, LUT, result);
 
         for (int i = 0; i < remain; i++) {
-            float tmp_dist = (ptr_fac->sqr_x) + sqr_y + ptr_fac->factor_ppc * vl +
+            float tmp_dist = (ptr_fac->sqr_x) + sqr_y + res_sqr_y + ptr_fac->factor_ppc * vl +
                              (result[i] - sumq) * ptr_fac->factor_ip * width;
             float error_bound = y * (ptr_fac->error) + res_error;
 #ifdef COUNT_SCAN
@@ -173,6 +175,20 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
     // The default value of distK is +inf
     ResultHeap KNNs;
     // ===========================================================================================================
+    // Compute the residual error bound
+    float res_error = 0;
+    for (int i = B; i < D; i++) {
+        res_error += var_[i] * (query[i] - mean_[i]) * (query[i] - mean_[i]);
+    }
+
+#ifdef RESIDUAL_SPLIT
+    float p_res_error = res_error - var_[B] * (query[B] - mean_[B]) * (query[B] - mean_[B]);
+    p_res_error = 4.0f * std::sqrt(p_res_error);
+#endif
+
+    res_error = 4.0f * std::sqrt(res_error);
+
+    // ===========================================================================================================
     // Find out the nearest N_{probe} centroids to the query vector.
     Result centroid_dist[numC];
     float *ptr_c = centroid;
@@ -207,7 +223,7 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
 
         fast_scan(KNNs, distK, k, \
                 LUT, packed_code + packed_start[c], len[c], fac + start[c], \
-                sqr_y, res_sqr_y, 0.06, vl, width, sum_q, \
+                sqr_y, res_sqr_y, res_error, vl, width, sum_q, \
                 query, data + start[c] * D, id + start[c]);
 
     }
@@ -233,6 +249,8 @@ void IVFRES<D, B>::save(char *filename) {
     output.write((char *) id, N * sizeof(uint32_t));
     output.write((char *) dist_to_c, N * sizeof(float));
     output.write((char *) x0, N * sizeof(float));
+    output.write((char *) var_, D * sizeof(float));
+    output.write((char *) mean_, D * sizeof(float));
 
     output.write((char *) centroid, C * B * sizeof(float));
     output.write((char *) data, N * D * sizeof(float));
@@ -265,28 +283,33 @@ void IVFRES<D, B>::load(char *filename) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> uniform(0.0, 1.0);
-    for(int i=0;i<B;i++)u[i] = uniform(gen);
+    for (int i = 0; i < B; i++)u[i] = uniform(gen);
 
-    centroid     = new float [C * B];
-    data         = new float [N * D];
+    centroid = new float[C * B];
+    data = new float[N * D];
 
-    binary_code  = static_cast<uint64_t*>(aligned_alloc(256, N * B / 64 * sizeof(uint64_t)));
+    binary_code = static_cast<uint64_t *>(aligned_alloc(256, N * B / 64 * sizeof(uint64_t)));
 
-    start        = new uint32_t [C];
-    len          = new uint32_t [C];
-    id           = new uint32_t [N];
-    dist_to_c    = new float [N];
-    x0           = new float [N];
+    start = new uint32_t[C];
+    len = new uint32_t[C];
+    id = new uint32_t[N];
+    dist_to_c = new float[N];
+    x0 = new float[N];
 
-    fac          = new Factor[N];
+    fac = new Factor[N];
 
-    input.read((char *) start      , C * sizeof(uint32_t));
-    input.read((char *) len        , C * sizeof(uint32_t));
-    input.read((char *) id         , N * sizeof(uint32_t));
-    input.read((char *) dist_to_c  , N * sizeof(float));
-    input.read((char *) x0         , N * sizeof(float));
+    var_ = new float [D];
+    mean_ = new float [D];
 
-    input.read((char *) centroid   , C * B * sizeof(float));
+    input.read((char *) start, C * sizeof(uint32_t));
+    input.read((char *) len, C * sizeof(uint32_t));
+    input.read((char *) id, N * sizeof(uint32_t));
+    input.read((char *) dist_to_c, N * sizeof(float));
+    input.read((char *) x0, N * sizeof(float));
+    input.read((char *) var_, D * sizeof(float));
+    input.read((char *) mean_, D * sizeof(float));
+
+    input.read((char *) centroid, C * B * sizeof(float));
     input.read((char *) data, N * D * sizeof(float));
     input.read((char *) binary_code, N * B / 64 * sizeof(uint64_t));
 
@@ -304,14 +327,14 @@ void IVFRES<D, B>::load(char *filename) {
     for (int i = 0; i < N; i++) {
         long double x_x0 = (long double) dist_to_c[i] / x0[i];
         fac[i].sqr_x = dist_to_c[i] * dist_to_c[i] +
-                       ip_sim<D - B>(data + i * D + B , data + i * D + B); // add the residual dim norm
+                       ip_sim<D - B>(data + i * D + B, data + i * D + B); // add the residual dim norm
         fac[i].error = 2 * max_x1 * std::sqrt(x_x0 * x_x0 - dist_to_c[i] * dist_to_c[i]);
         ave_error += fac[i].error;
         fac[i].factor_ppc = -2 / fac_norm * x_x0 * ((float) space.popcount(binary_code + i * B / 64) * 2 - B);
         fac[i].factor_ip = -2 / fac_norm * x_x0;
     }
     ave_error /= N;
-    std::cerr<<"ave error:: "<<ave_error<<std::endl;
+    std::cerr << "ave error:: " << ave_error << std::endl;
     input.close();
 }
 
@@ -336,7 +359,7 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
 
     N = X.n;
     C = _centroids.n;
-    RD = X.d - D;
+    RD = D - B + 1;
     // check uint64_t
     assert(B % 64 == 0);
 
@@ -349,38 +372,68 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
     memset(len, 0, C * sizeof(uint32_t));
     for (int i = 0; i < N; i++)len[cluster_id.data[i]]++;
     int sum = 0;
-    for(int i=0;i<C;i++){
+    for (int i = 0; i < C; i++) {
         start[i] = sum;
         sum += len[i];
     }
-    for(int i=0;i<N;i++){
+    for (int i = 0; i < N; i++) {
         id[start[cluster_id.data[i]]] = i;
         dist_to_c[start[cluster_id.data[i]]] = dist_to_centroid.data[i];
         x0[start[cluster_id.data[i]]] = _x0.data[i];
         start[cluster_id.data[i]]++;
     }
-    for(int i=0;i<C;i++){
+    for (int i = 0; i < C; i++) {
         start[i] -= len[i];
     }
 
     centroid = new float[C * B];
-    data = new float[N * D];
+#ifdef RESIDUAL_SPLIT
+    data = new float[N * B];
     res_data = new float[N * RD];
+#else
+    data = new float[N * D];
+#endif
     binary_code = new uint64_t[N * B / 64];
 
     std::memcpy(centroid, _centroids.data, C * B * sizeof(float));
     float *data_ptr = data;
     float *res_ptr = res_data;
     uint64_t *binary_code_ptr = binary_code;
-
     for (int i = 0; i < N; i++) {
         int x = id[i];
-        std::memcpy(data_ptr, X.data + x * X.d, D * sizeof(float));
+#ifdef RESIDUAL_SPLIT
+        data_ptr[0] = ip_sim<D>(X.data + x * X.d, X.data + x * X.d);
+        std::memcpy(data_ptr + 1, X.data + x * X.d, (B - 1) * sizeof(float));
         std::memcpy(res_ptr, X.data + x * X.d + D, RD * sizeof(float));
-        std::memcpy(binary_code_ptr, binary.data + x * (B / 64), (B / 64) * sizeof(uint64_t));
+        data_ptr += B;
+        res_ptr += RD;
+#else
+        std::memcpy(data_ptr, X.data + x * X.d, D * sizeof(float));
         data_ptr += D;
+#endif
+        std::memcpy(binary_code_ptr, binary.data + x * (B / 64), (B / 64) * sizeof(uint64_t));
         binary_code_ptr += B / 64;
     }
+
+    std::vector<double> mean(D);
+#pragma omp parallel for
+    for (int j = 0; j < D; j++) {
+        for (int i = 0; i < N; i++) {
+            mean[j] += X.data[i * D + j];
+        }
+    }
+    mean_ = new float[D];
+    for (int j = 0; j < D; j++) mean_[j] = mean[j] / N;
+
+    std::vector<double> variance(D);
+#pragma omp parallel for
+    for (int j = 0; j < D; j++) {
+        for (int i = 0; i < N; i++) {
+            variance[j] += (X.data[i * D + j] - mean_[j]) * (X.data[i * D + j] - mean_[j]);
+        }
+    }
+    var_ = new float[D];
+    for (int j = 0; j < D; j++) var_[j] = variance[j] / N;
 }
 
 template<uint32_t D, uint32_t B>
@@ -393,6 +446,8 @@ IVFRES<D, B>::~IVFRES() {
     if (data != NULL) delete[] data;
     if (fac != NULL) delete[] fac;
     if (u != NULL) delete[] u;
+    if (var_ != NULL) delete[] var_;
+    if (mean_ != NULL) delete[] mean_;
     if (binary_code != NULL) std::free(binary_code);
     if (centroid != NULL) std::free(centroid);
 }

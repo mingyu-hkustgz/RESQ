@@ -2,7 +2,7 @@
 #define USE_AVX2
 #define FAST_SCAN
 #define COUNT_SCAN
-
+#define RESIDUAL_SPLIT
 #include <iostream>
 #include <fstream>
 
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
     // ================================================================================================================================
 
 
-    //freopen(result_file_view, "a", stdout);
+    freopen(result_file_view, "a", stdout);
     float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
     struct rusage run_start, run_end;
     GetCurTime(&run_start);

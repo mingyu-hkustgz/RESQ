@@ -1,6 +1,6 @@
 #define USE_AVX2
 #define FAST_SCAN
-
+//#define RESIDUAL_SPLIT
 #include <iostream>
 #include <cstdio>
 #include <fstream>

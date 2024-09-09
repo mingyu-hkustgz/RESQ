@@ -232,6 +232,45 @@ inline float ip_sim(float *d, float *q) {
 }
 
 template<uint32_t L>
+inline float mask_last_ip_sim127(float *d, float *q) {
+    float PORTABLE_ALIGN32 TmpRes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    constexpr uint32_t num_blk16 = L >> 4;
+
+    __m256 v1, v2;
+    __m256 sum = _mm256_set1_ps(0);
+    for (int i = 0; i < num_blk16; i++) {
+        v1 = _mm256_loadu_ps(d);
+        v2 = _mm256_loadu_ps(q);
+        d += 8;
+        q += 8;
+        sum = _mm256_add_ps(sum, _mm256_mul_ps(v1, v2));
+
+        v1 = _mm256_loadu_ps(d);
+        v2 = _mm256_loadu_ps(q);
+        d += 8;
+        q += 8;
+        sum = _mm256_add_ps(sum, _mm256_mul_ps(v1, v2));
+    }
+
+    v1 = _mm256_loadu_ps(d);
+    v2 = _mm256_loadu_ps(q);
+    d += 8;
+    q += 8;
+    sum = _mm256_add_ps(sum, _mm256_mul_ps(v1, v2));
+
+    __m256i mask = _mm256_setr_epi32(-1, -1, -1, -1, -1, -1, -1, 0);
+    v1 = _mm256_maskload_ps(d, mask);
+    v2 = _mm256_loadu_ps(q);
+    sum = _mm256_add_ps(sum, _mm256_mul_ps(v1, v2));
+
+    _mm256_store_ps(TmpRes, sum);
+
+    float ret = TmpRes[0] + TmpRes[1] + TmpRes[2] + TmpRes[3] + TmpRes[4] + TmpRes[5] + TmpRes[6] + TmpRes[7];
+
+    return ret;
+}
+
+template<uint32_t L>
 float vec_sqr(const float *q) {
     float sqr = 0;
     for (int i = 0; i < L; i++) {
