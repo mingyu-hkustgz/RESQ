@@ -8,4 +8,4 @@ add_executable(res_index ResBitQ/res_index.cpp)
 
 add_executable(res_search ResBitQ/res_search.cpp)
 
-add_executable(test_res_bit ResBitQ/test_res_bit.cpp)
+add_executable(test_res_bit ResBitQ/local_test_res_bit.cpp)

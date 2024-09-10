@@ -1,6 +1,6 @@
 #define USE_AVX2
 #define FAST_SCAN
-//#define RESIDUAL_SPLIT
+#define RESIDUAL_SPLIT
 #include <iostream>
 #include <cstdio>
 #include <fstream>
@@ -79,7 +79,11 @@ int main(int argc, char *argv[]) {
     sprintf(binary_path, "%sRES_Rand_C%d_B%d.Ivecs", source, numC, bit);
     Matrix<uint64_t> binary(binary_path);
 
+#ifdef RESIDUAL_SPLIT
+    sprintf(index_path, "%sivf_split%d_B%d.index", source, numC, bit);
+#else
     sprintf(index_path, "%sivf_res%d_B%d.index", source, numC, bit);
+#endif
     std::cerr << "Loading Succeed!" << std::endl << std::endl;
     // ==============================================================================================================
     std::string str_data(dataset);

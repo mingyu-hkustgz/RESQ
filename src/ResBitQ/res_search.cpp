@@ -57,8 +57,6 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float
                     if (id == G.data[i * G.d + j])tmp_correct++;
             }
             correct += tmp_correct;
-//            std::cerr << "recall = " << tmp_correct << " / " << k << " " << i + 1 << " / " << Q.n << " " << usr_t * 1e6
-//                      << "us" << std::endl;
         }
         float time_us_per_query = total_time / Q.n + rotation_time;
         float recall = 1.0f * correct / (Q.n * k);
@@ -145,11 +143,20 @@ int main(int argc, char *argv[]) {
     Matrix<float> PCA(PCA_matrix_path);
 
     char index_path[256] = "";
+#ifdef RESIDUAL_SPLIT
+    sprintf(index_path, "%sivf_split%d_B%d.index", source, numC, bit);
+#else
     sprintf(index_path, "%sivf_res%d_B%d.index", source, numC, bit);
+#endif
+
     std::cerr << index_path << std::endl;
 
     char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivfres%d_B%d_fast_scan.log", result_path, dataset, numC, bit);
+#ifdef RESIDUAL_SPLIT
+    sprintf(result_file_view, "%s%s_ivf_split%d_B%d_fast_scan.log", result_path, dataset, numC, bit);
+#else
+    sprintf(result_file_view, "%s%s_ivf_res%d_B%d_fast_scan.log", result_path, dataset, numC, bit);
+#endif
     std::cerr << "Loading Succeed!" << std::endl;
     // ================================================================================================================================
 

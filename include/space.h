@@ -287,5 +287,13 @@ float naive_l2_dist(float *q, float *p, int d) {
     return sqr;
 }
 
+float naive_ip_dist(float *q, float *p, int d) {
+    float sqr = 0;
+    for (int i = 0; i < d; i++) {
+        sqr += p[i] * q[i];
+    }
+    return sqr;
+}
+
 
 #endif //DEEPBIT_SPACE_H
