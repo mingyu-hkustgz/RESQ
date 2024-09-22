@@ -1,6 +1,5 @@
 #define USE_AVX2
 #define FAST_SCAN
-#define RESIDUAL_SPLIT
 #include <iostream>
 #include <cstdio>
 #include <fstream>
@@ -11,6 +10,7 @@
 #include "matrix.h"
 #include "utils.h"
 #include "ivf_res.h"
+#include "omp.h"
 
 using namespace std;
 
@@ -88,13 +88,33 @@ int main(int argc, char *argv[]) {
     // ==============================================================================================================
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
-    if (str_data == "sift") {
-        const uint32_t BB = 64, DIM = 128;
+    if (str_data == "msong") {
+        const uint32_t BB = 128, DIM = 420;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
         ivf.save(index_path);
     }
     if (str_data == "gist") {
         const uint32_t BB = 128, DIM = 960;
+        IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
+        ivf.save(index_path);
+    }
+    if (str_data == "deep1M") {
+        const uint32_t BB = 128, DIM = 256;
+        IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
+        ivf.save(index_path);
+    }
+    if (str_data == "tiny5m") {
+        const uint32_t BB = 128, DIM = 384;
+        IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
+        ivf.save(index_path);
+    }
+    if (str_data == "word2vec") {
+        const uint32_t BB = 256, DIM = 300;
+        IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
+        ivf.save(index_path);
+    }
+    if (str_data == "glove2.2m") {
+        const uint32_t BB = 256, DIM = 300;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
         ivf.save(index_path);
     }

@@ -13,6 +13,7 @@
 #include "utils.h"
 #include "space.h"
 #include "fast_scan.h"
+#include "local_test_fast512_scan.h"
 
 template<uint32_t D, uint32_t B>
 class IVFRES {
@@ -75,6 +76,10 @@ public:
                          const float vl, const float all_sqr_y,
                          const float width, const float sumq,
                          float *query, float *data, float *res_data, uint32_t *id);
+
+    void uniform_prune_parameter_config(const Matrix<float> &X);
+
+    void knn_pruned_parameter_config(const Matrix<float> &X);
 
     void save(char *filename);
 
@@ -284,16 +289,17 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
     // ===========================================================================================================
     // Compute the residual error bound
     float res_error = 0;
+    for (int i = 0; i < D; i++) query[i] -= mean_[i];
     for (int i = B; i < D; i++) {
-        res_error += var_[i] * (query[i] - mean_[i]) * (query[i] - mean_[i]);
+        res_error += var_[i] * query[i] * query[i];
     }
 
 #ifdef RESIDUAL_SPLIT
-    float p_res_error = res_error + var_[B - 1] * (query[B - 1] - mean_[B - 1]) * (query[B - 1] - mean_[B - 1]);
-    p_res_error = 8.0f * std::sqrt(p_res_error);
+    float p_res_error = res_error + var_[B - 1] * query[B - 1] * query[B - 1];
+    p_res_error = 5.0f * std::sqrt(p_res_error);
 #endif
 
-    res_error = 6.0f * std::sqrt(res_error);
+    res_error = 5.0f * std::sqrt(res_error);
 
     // ===========================================================================================================
     // Find out the nearest N_{probe} centroids to the query vector.
@@ -341,6 +347,7 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
 #endif
 
     }
+    for (int i = 0; i < D; i++) query[i] += mean_[i];
     return KNNs;
 }
 
@@ -503,6 +510,8 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
     dist_to_c = new float[N];
     x0 = new float[N];
 
+    uniform_prune_parameter_config(X);
+
     memset(len, 0, C * sizeof(uint32_t));
     for (int i = 0; i < N; i++)len[cluster_id.data[i]]++;
     int sum = 0;
@@ -549,25 +558,6 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
         binary_code_ptr += B / 64;
     }
     std::cerr << "load finished" << std::endl;
-    std::vector<double> mean(D);
-#pragma omp parallel for
-    for (int j = 0; j < D; j++) {
-        for (int i = 0; i < N; i++) {
-            mean[j] += X.data[i * D + j];
-        }
-    }
-    mean_ = new float[D];
-    for (int j = 0; j < D; j++) mean_[j] = mean[j] / N;
-
-    std::vector<double> variance(D);
-#pragma omp parallel for
-    for (int j = 0; j < D; j++) {
-        for (int i = 0; i < N; i++) {
-            variance[j] += (X.data[i * D + j] - mean_[j]) * (X.data[i * D + j] - mean_[j]);
-        }
-    }
-    var_ = new float[D];
-    for (int j = 0; j < D; j++) var_[j] = variance[j] / N;
 }
 
 template<uint32_t D, uint32_t B>
@@ -585,5 +575,36 @@ IVFRES<D, B>::~IVFRES() {
     if (binary_code != NULL) std::free(binary_code);
     if (centroid != NULL) std::free(centroid);
 }
+
+template<uint32_t D, uint32_t B>
+void IVFRES<D, B>::uniform_prune_parameter_config(const Matrix<float> &X){
+    /* Configure Prune Parameters */
+    std::vector<double> mean(D);
+#pragma omp parallel for schedule(dynamic,70)
+    for (int j = 0; j < D; j++) {
+        for (int i = 0; i < N; i++) {
+            mean[j] += X.data[i * D + j];
+        }
+    }
+    mean_ = new float[D];
+    for (int j = 0; j < D; j++) mean_[j] = mean[j] / N;
+#pragma omp parallel for schedule(dynamic,70)
+    for (int j = 0; j < D; j++) {
+        for (int i = 0; i < N; i++) {
+            X.data[i * D + j] -= mean_[j];
+        }
+    }
+    std::vector<double> variance(D);
+#pragma omp parallel for schedule(dynamic,70)
+    for (int j = 0; j < D; j++) {
+        for (int i = 0; i < N; i++) {
+            variance[j] += X.data[i * D + j] * X.data[i * D + j];
+        }
+    }
+    var_ = new float[D];
+    for (int j = 0; j < D; j++) var_[j] = variance[j] / N;
+    std::cerr << "Parameter Configure Finished" << std::endl;
+}
+
 
 #endif //DEEPBIT_IVF_RES_H

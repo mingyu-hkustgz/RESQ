@@ -2,18 +2,20 @@ source set.sh
 
 for data in "${datasets[@]}"; do
   for K in {20,100}; do
-    if [ $data == "sift" ]; then
-      B=128
+    if [ $data == "msong" ]; then
+      B=448
+    elif [ $data == "deep1M" ]; then
+      B=256
+    elif [ $data == "word2vec" ]; then
+      B=320
+    elif [ $data == "glove2.2m" ]; then
+      B=320
+    elif [ $data == "tiny5m" ]; then
+      B=384
     elif [ $data == "gist" ]; then
       B=960
-    elif [ $data == "pgist" ]; then
-      B=512
-    elif [ $data == "ppgist" ]; then
-      B=256
-    elif [ $data == "pppgist" ]; then
-      B=128
     fi
     res="${result_path}/recall@${K}/${data}/"
-    ./cmake-build-debug/src/rabit_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
+    ./cmake-build-debug/src/rabit_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} &
   done
 done

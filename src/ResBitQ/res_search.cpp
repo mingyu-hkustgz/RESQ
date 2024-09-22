@@ -1,8 +1,7 @@
 #define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
 #define FAST_SCAN
-#define COUNT_SCAN
-#define RESIDUAL_SPLIT
+//#define COUNT_SCAN
 #include <iostream>
 #include <fstream>
 
@@ -19,6 +18,7 @@ using namespace std;
 const int MAXK = 100;
 
 long double rotation_time = 0;
+int probe_base = 50;
 
 template<uint32_t D, uint32_t B>
 void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float> &X,
@@ -29,11 +29,9 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float
 
     // ========================================================================
     // Search Parameter
-    vector<int> nprobes;
-    nprobes.push_back(300);
     // ========================================================================
 
-    for (auto nprobe: nprobes) {
+    for (int nprobe = probe_base; nprobe <= probe_base * 20; nprobe += probe_base) {
         float total_time = 0;
         float total_ratio = 0;
         int correct = 0;
@@ -62,16 +60,16 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float
         float recall = 1.0f * correct / (Q.n * k);
         float average_ratio = total_ratio / (Q.n * k);
 
-        cout << "------------------------------------------------" << endl;
-#ifdef COUNT_SCAN
-        cout << "Count Full Scan " << count_scan << endl;
-        cout << "All Distance Count " << all_dist_count << endl;
-        cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
-#endif
-        cout << "nprobe = " << nprobe << " k = " << k << endl;
-        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
-        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
-
+//        cout << "------------------------------------------------" << endl;
+//#ifdef COUNT_SCAN
+//        cout << "Count Full Scan " << count_scan << endl;
+//        cout << "All Distance Count " << all_dist_count << endl;
+//        cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
+//#endif
+//        cout << "nprobe = " << nprobe << " k = " << k << endl;
+//        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
+//        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
+        cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
     }
 }
 
@@ -139,7 +137,7 @@ int main(int argc, char *argv[]) {
     Matrix<float> P(random_matrix_path);
 
     char PCA_matrix_path[256] = "";
-    sprintf(PCA_matrix_path, "%sgist_pca.fvecs", source);
+    sprintf(PCA_matrix_path, "%s%s_pca.fvecs", source, dataset);
     Matrix<float> PCA(PCA_matrix_path);
 
     char index_path[256] = "";
@@ -153,9 +151,9 @@ int main(int argc, char *argv[]) {
 
     char result_file_view[256] = "";
 #ifdef RESIDUAL_SPLIT
-    sprintf(result_file_view, "%s%s_ivf_split%d_B%d_fast_scan.log", result_path, dataset, numC, bit);
+    sprintf(result_file_view, "%s%s_ivf_split_scan.log", result_path, dataset, numC, bit);
 #else
-    sprintf(result_file_view, "%s%s_ivf_res%d_B%d_fast_scan.log", result_path, dataset, numC, bit);
+    sprintf(result_file_view, "%s%s_ivf_res_scan.log", result_path, dataset, numC, bit);
 #endif
     std::cerr << "Loading Succeed!" << std::endl;
     // ================================================================================================================================
@@ -165,7 +163,7 @@ int main(int argc, char *argv[]) {
     float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
     struct rusage run_start, run_end;
     GetCurTime(&run_start);
-    std::cout << "begin Matrix Operation" << std::endl;
+    std::cerr << "begin Matrix Operation" << std::endl;
     Matrix<float> PCAQ(Q.n, Q.d, Q);
     PCAQ = mul(PCAQ, PCA);
     auto TEMP_Q = resize_matrix(PCAQ, PCAQ.n, bit);
@@ -176,16 +174,46 @@ int main(int argc, char *argv[]) {
     rotation_time = usr_t * 1e6 / Q.n;
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
-    if (str_data == "sift") {
-        const uint32_t BB = 64, DIM = 128;
+    if (str_data == "msong") {
+        const uint32_t BB = 128, DIM = 420;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
+        probe_base = 5;
         test(PCAQ, RandQ, X, G, ivf, subk);
     }
     if (str_data == "gist") {
         const uint32_t BB = 128, DIM = 960;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
+        probe_base = 25;
+        test(PCAQ, RandQ, X, G, ivf, subk);
+    }
+    if (str_data == "deep1M") {
+        const uint32_t BB = 128, DIM = 256;
+        IVFRES<DIM, BB> ivf;
+        ivf.load(index_path);
+        probe_base = 15;
+        test(PCAQ, RandQ, X, G, ivf, subk);
+    }
+    if (str_data == "tiny5m") {
+        const uint32_t BB = 128, DIM = 384;
+        IVFRES<DIM, BB> ivf;
+        ivf.load(index_path);
+        probe_base = 25;
+        test(PCAQ, RandQ, X, G, ivf, subk);
+    }
+    if (str_data == "word2vec") {
+        const uint32_t BB = 256, DIM = 300;
+        IVFRES<DIM, BB> ivf;
+        ivf.load(index_path);
+        probe_base = 15;
+        test(PCAQ, RandQ, X, G, ivf, subk);
+    }
+    if (str_data == "glove2.2m") {
+        const uint32_t BB = 256, DIM = 300;
+        IVFRES<DIM, BB> ivf;
+        ivf.load(index_path);
+        probe_base = 15;
         test(PCAQ, RandQ, X, G, ivf, subk);
     }
 

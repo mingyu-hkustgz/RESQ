@@ -1,7 +1,7 @@
 #define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
 #define FAST_SCAN
-#define COUNT_SCAN
+//#define COUNT_SCAN
 
 #include <iostream>
 #include <fstream>
@@ -19,6 +19,7 @@ using namespace std;
 const int MAXK = 100;
 
 long double rotation_time = 0;
+int probe_base = 50;
 
 template<uint32_t D, uint32_t B>
 void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float> &X, const Matrix<unsigned> &G,
@@ -28,11 +29,10 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float
 
     // ========================================================================
     // Search Parameter
-    vector<int> nprobes;
-    nprobes.push_back(300);
+
     // ========================================================================
 
-    for (auto nprobe: nprobes) {
+    for (int nprobe = probe_base; nprobe <= probe_base * 20; nprobe += probe_base) {
         float total_time = 0;
         float total_ratio = 0;
         int correct = 0;
@@ -63,16 +63,16 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float
         float recall = 1.0f * correct / (Q.n * k);
         float average_ratio = total_ratio / (Q.n * k);
 
-        cout << "------------------------------------------------" << endl;
+//        cout << "------------------------------------------------" << endl;
 #ifdef COUNT_SCAN
         cout << "Count Full Scan " << count_scan << endl;
         cout << "All Distance Count " << all_dist_count << endl;
         cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
 #endif
-        cout << "nprobe = " << nprobe << " k = " << k <<" Query Bits "<< B_QUERY << endl;
-        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
-        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
-
+//        cout << "nprobe = " << nprobe << " k = " << k <<" Query Bits "<< B_QUERY << endl;
+//        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
+//        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
+        cout<<recall*100.0<<" "<<1e6 / (time_us_per_query)<<endl;
     }
 }
 
@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
     std::cerr << index_path << std::endl;
 #if defined(FAST_SCAN)
     char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivfrabitq%d_B%d_fast_scan.log", result_path, dataset, numC, bit);
+    sprintf(result_file_view, "%s%s_ivf_fast_scan.log", result_path, dataset, numC, bit);
 #elif defined(SCAN)
     char result_file_view[256] = "";
     sprintf(result_file_view, "%s%s_ivfrabitq%d_B%d_scan.log", result_path, dataset, numC, bit);
@@ -166,34 +166,46 @@ int main(int argc, char *argv[]) {
     rotation_time = usr_t * 1e6 / Q.n;
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
-    if (str_data == "sift") {
-        const uint32_t BB = 128, DIM = 128;
+    if (str_data == "msong") {
+        const uint32_t BB = 448, DIM = 420;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
+        probe_base = 5;
         test(Q, RandQ, X, G, ivf, subk);
     }
     if (str_data == "gist") {
         const uint32_t BB = 960, DIM = 960;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
+        probe_base = 25;
         test(Q, RandQ, X, G, ivf, subk);
     }
-    if (str_data == "pgist") {
-        const uint32_t BB = 512, DIM = 512;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
-        test(Q, RandQ, X, G, ivf, subk);
-    }
-    if (str_data == "ppgist") {
+    if (str_data == "deep1M") {
         const uint32_t BB = 256, DIM = 256;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
+        probe_base = 15;
         test(Q, RandQ, X, G, ivf, subk);
     }
-    if (str_data == "pppgist") {
-        const uint32_t BB = 128, DIM = 128;
+    if (str_data == "tiny5m") {
+        const uint32_t BB = 384, DIM = 384;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
+        probe_base = 25;
+        test(Q, RandQ, X, G, ivf, subk);
+    }
+    if (str_data == "word2vec") {
+        const uint32_t BB = 320, DIM = 300;
+        IVFRN<DIM, BB> ivf;
+        ivf.load(index_path);
+        probe_base = 15;
+        test(Q, RandQ, X, G, ivf, subk);
+    }
+    if (str_data == "glove2.2m") {
+        const uint32_t BB = 320, DIM = 300;
+        IVFRN<DIM, BB> ivf;
+        ivf.load(index_path);
+        probe_base = 15;
         test(Q, RandQ, X, G, ivf, subk);
     }
 
