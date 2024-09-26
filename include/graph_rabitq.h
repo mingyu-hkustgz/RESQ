@@ -88,7 +88,7 @@ GraphRabit<D, B>::GraphRabit(const Matrix<float> &X, const Matrix<float> &centro
     nd_ = X.n;
     data_ = new float[nd_ * D];
     x0 = new float[nd_];
-    centroid_ = new float[D];
+    centroid_ = new float[B];
     binary_code = new uint64_t[nd_ * B / 64];
     fac = new Factor[nd_];
 
@@ -223,12 +223,12 @@ void GraphRabit<D, B>::SearchRabit(float *query, float *rd_query, int K, int L, 
     float width = (vr - vl) / ((1 << B_QUERY) - 1);
     uint32_t sum_q = 0;
     space.quantize(byte_query, rd_query, centroid_, u, vl, width, sum_q);
-    auto sumq = (float) sum_q;
+    auto sumq = (float) sum_q;//Continuity [important]
     uint64_t PORTABLE_ALIGN32 quant_query[B_QUERY * B / 64];
     memset(quant_query, 0, sizeof(quant_query));
     space.transpose_bin(byte_query, quant_query);
 
-    float sqr_y = sqr_dist<D>(rd_query, centroid_);
+    float sqr_y = sqr_dist<B>(rd_query, centroid_);
     float y = std::sqrt(sqr_y);
 
     std::sort(retset.begin(), retset.begin() + L);
@@ -346,36 +346,36 @@ void GraphRabit<D, B>::Load(const char *filename) {
 
 template<uint32_t D, uint32_t B>
 void GraphRabit<D, B>::Save(const char *filename) {
-    std::ofstream ouput(filename, std::ios::binary);
+    std::ofstream output(filename, std::ios::binary);
     //std::cerr << filename << std::endl;
 
-    ouput.write((char *) &nd_, sizeof(uint32_t));
+    output.write((char *) &nd_, sizeof(uint32_t));
     uint32_t d = D, b = B;
-    ouput.write((char *) &d, sizeof(uint32_t));
-    ouput.write((char *) &b, sizeof(uint32_t));
+    output.write((char *) &d, sizeof(uint32_t));
+    output.write((char *) &b, sizeof(uint32_t));
 
-    ouput.write((char *) x0, nd_ * sizeof(float));
-    ouput.write((char *) centroid_, B * sizeof(float));
-    ouput.write((char *) data_, nd_ * D * sizeof(float));
-    ouput.write((char *) binary_code, nd_ * B / 64 * sizeof(uint64_t));
+    output.write((char *) x0, nd_ * sizeof(float));
+    output.write((char *) centroid_, B * sizeof(float));
+    output.write((char *) data_, nd_ * D * sizeof(float));
+    output.write((char *) binary_code, nd_ * B / 64 * sizeof(uint64_t));
 
     for (int i = 0; i < nd_; i++) {
-        ouput.write((char *) &fac[i].sqr_x, sizeof(float));
-        ouput.write((char *) &fac[i].error, sizeof(float));
-        ouput.write((char *) &fac[i].factor_ppc, sizeof(float));
-        ouput.write((char *) &fac[i].factor_ip, sizeof(float));
+        output.write((char *) &fac[i].sqr_x, sizeof(float));
+        output.write((char *) &fac[i].error, sizeof(float));
+        output.write((char *) &fac[i].factor_ppc, sizeof(float));
+        output.write((char *) &fac[i].factor_ip, sizeof(float));
     }
-    ouput.write((char *) &width, sizeof(unsigned));
+    output.write((char *) &width, sizeof(unsigned));
     unsigned n_ep = eps_.size();
-    ouput.write((char *) &n_ep, sizeof(unsigned));
+    output.write((char *) &n_ep, sizeof(unsigned));
     eps_.resize(n_ep);
-    ouput.write((char *) eps_.data(), n_ep * sizeof(unsigned));
+    output.write((char *) eps_.data(), n_ep * sizeof(unsigned));
     // width=100;
     unsigned cc = 0;
     for (int i = 0; i < nd_; i++) {
         unsigned k = final_graph_[i].size();
-        ouput.write((char *) &k, sizeof(unsigned));
-        ouput.write((char *) final_graph_[i].data(), k * sizeof(unsigned));
+        output.write((char *) &k, sizeof(unsigned));
+        output.write((char *) final_graph_[i].data(), k * sizeof(unsigned));
     }
 }
 

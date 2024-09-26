@@ -1,7 +1,7 @@
 #define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
 #define FAST_SCAN
-//#define COUNT_SCAN
+#define COUNT_SCAN
 
 #include <iostream>
 #include <fstream>
@@ -10,7 +10,6 @@
 #include <cmath>
 #include <matrix.h>
 #include <utils.h>
-#include "graph_rabitq.h"
 #include "graph_res.h"
 #include <getopt.h>
 #include "space.h"
@@ -23,7 +22,8 @@ long double rotation_time = 0;
 int probe_base = 50;
 
 template<uint32_t D, uint32_t B>
-void test(const Matrix<float> &Q, const Matrix<unsigned> &G, const GraphRabit<D, B> &graph, int k) {
+void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsigned> &G, const GraphRes<D, B> &graph,
+          int k) {
     float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
     struct rusage run_start, run_end;
 
@@ -36,11 +36,14 @@ void test(const Matrix<float> &Q, const Matrix<unsigned> &G, const GraphRabit<D,
         float total_time = 0;
         float total_ratio = 0;
         int correct = 0;
-
+#ifdef COUNT_SCAN
+        count_scan = 0;
+        all_dist_count = 0;
+#endif
         for (int i = 0; i < Q.n; i++) {
             GetCurTime(&run_start);
             ResultHeap KNNs;
-            graph.Search(Q.data + i * Q.d, k, nprobe, KNNs);
+            graph.SearchRes(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe, KNNs);
             GetCurTime(&run_end);
             GetTime(&run_start, &run_end, &usr_t, &sys_t);
             total_time += usr_t * 1e6;
@@ -121,44 +124,40 @@ int main(int argc, char *argv[]) {
     // ================================================================================================================================
     // Data Files
     char data_path[256] = "";
-    sprintf(data_path, "%s%s_base.fvecs", source, dataset);
+    sprintf(data_path, "%s%s_proj.fvecs", source, dataset);
     Matrix<float> X(data_path);
 
-    char transformation_path[256] = "";
-    sprintf(transformation_path, "%sP.fvecs", source);
-    Matrix<float> P(transformation_path);
-
     char x0_path[256] = "";
-    sprintf(x0_path, "%sx0.fvecs", source);
+    sprintf(x0_path, "%sRES_x0.fvecs", source);
     Matrix<float> x0(x0_path);
 
     char dist_to_centroid_path[256] = "";
-    sprintf(dist_to_centroid_path, "%sx2.fvecs", source);
+    sprintf(dist_to_centroid_path, "%sRES_x2.fvecs", source);
     Matrix<float> x2(dist_to_centroid_path);
 
     char centroid_path[256] = "";
-    sprintf(centroid_path, "%sRandCentroid.fvecs", source);
+    sprintf(centroid_path, "%sRESCentroid.fvecs", source);
     Matrix<float> C(centroid_path);
 
     char binary_path[256] = "";
-    sprintf(binary_path, "%sRandNet.Ivecs", source);
+    sprintf(binary_path, "%sRES_Rand.Ivecs", source);
     Matrix<uint64_t> binary(binary_path);
 
     char graph_path[256] = "";
     sprintf(graph_path, "%s%s.ssg", source, dataset);
 
     char index_path[256] = "";
-    sprintf(index_path, "%s%s_rabit.graph", source, dataset);
-    std::cerr << graph_path << std::endl;
+    sprintf(index_path, "%s%s_res.graph", source, dataset);
+    std::cerr << index_path << std::endl;
 
     // ================================================================================================================================
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
     if (str_data == "gist") {
-        const uint32_t BB = 128, DIM = 960;
-        GraphRabit<DIM, BB> graph(X);
-        graph.LoadGraph(index_path);
-        probe_base = 25;
+        const uint32_t BB = 256, DIM = 960;
+        GraphRes<DIM, BB> graph(X, C, x2, x0, binary);
+        graph.LoadGraph(graph_path);
+        graph.Save(index_path);
     }
     return 0;
 }

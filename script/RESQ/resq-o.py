@@ -25,7 +25,7 @@ def GenerateBinaryCode(X, P):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='random projection')
     parser.add_argument('-d', '--dataset', help='dataset', default='gist')
-    parser.add_argument('-b', '--bits', help='quantized bits', default=128)
+    parser.add_argument('-b', '--bits', help='quantized bits', default=256)
     args = vars(parser.parse_args())
     dataset = args['dataset']
     bits = int(args['bits'])
@@ -78,5 +78,5 @@ if __name__ == "__main__":
     to_Ivecs(RN_path, uint64_XP)
     to_fvecs(x0_path, x0)
     to_fvecs(x2_path, x2)
-    to_fvecs(centroid_path, X_mean.reshape((1, D)))
+    to_fvecs(centroid_path, X_mean.reshape((1, bits)))
     to_fvecs(projection_path, P)
