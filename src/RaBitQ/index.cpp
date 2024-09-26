@@ -109,6 +109,11 @@ int main(int argc, char *argv[]) {
         IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
         ivf.save(index_path);
     }
+    if (str_data == "sift") {
+        const uint32_t BB = 128, DIM = 128;
+        IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
+        ivf.save(index_path);
+    }
     if (str_data == "glove2.2m") {
         const uint32_t BB = 320, DIM = 300;
         IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);

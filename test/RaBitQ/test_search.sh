@@ -12,10 +12,13 @@ for data in "${datasets[@]}"; do
       B=320
     elif [ $data == "tiny5m" ]; then
       B=384
+    elif [ $data == "sift" ]; then
+      B=128
     elif [ $data == "gist" ]; then
       B=960
     fi
     res="${result_path}/recall@${K}/${data}/"
-    ./cmake-build-debug/src/rabit_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} &
+    ./cmake-build-debug/src/rabit_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
+    ./cmake-build-debug/src/rabit_fast_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
   done
 done

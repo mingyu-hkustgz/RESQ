@@ -11,6 +11,8 @@ for data in "${datasets[@]}"; do
     B=320
   elif [ $data == "tiny5m" ]; then
     B=384
+  elif [ $data == "sift" ]; then
+    B=128
   elif [ $data == "gist" ]; then
     B=960
   fi

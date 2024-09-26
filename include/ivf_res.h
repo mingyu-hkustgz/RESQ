@@ -13,7 +13,6 @@
 #include "utils.h"
 #include "space.h"
 #include "fast_scan.h"
-#include "local_test_fast512_scan.h"
 
 template<uint32_t D, uint32_t B>
 class IVFRES {
@@ -78,8 +77,6 @@ public:
                          float *query, float *data, float *res_data, uint32_t *id);
 
     void uniform_prune_parameter_config(const Matrix<float> &X);
-
-    void knn_pruned_parameter_config(const Matrix<float> &X);
 
     void save(char *filename);
 

@@ -12,11 +12,13 @@ for data in "${datasets[@]}"; do
       B=128
     elif [ $data == "word2vec" ]; then
       B=256
+    elif [ $data == "sift" ]; then
+      B=64
     elif [ $data == "glove2.2m" ]; then
       B=256
     fi
     res="${result_path}/recall@${K}/${data}/"
-    ./cmake-build-debug/src/res_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} &
-    ./cmake-build-debug/src/res_split_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} &
+    ./cmake-build-debug/src/res_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
+    ./cmake-build-debug/src/res_split_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
   done
 done

@@ -73,6 +73,13 @@ ResultHeap getGroundtruth(const Matrix<float> &X, const Matrix<float> &Q, size_t
     return ret;
 }
 
+void MatrixCenter(Matrix<float> &Q, Matrix<float> &C) {
+    for (int i = 0; i < Q.n; i++) {
+        for (int j = 0; j < Q.d; j++) {
+            Q.data[i * Q.d + j] -= C.data[j];
+        }
+    }
+}
 
 
 float getRatio(int q, const Matrix<float> &Q, const Matrix<float> &X, const Matrix<unsigned> &G, ResultHeap KNNs) {

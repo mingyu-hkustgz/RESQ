@@ -1,5 +1,6 @@
 #define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
+#define FAST_SCAN
 //#define COUNT_SCAN
 
 #include <iostream>
@@ -9,7 +10,8 @@
 #include <cmath>
 #include <matrix.h>
 #include <utils.h>
-#include <ivf_rabitq.h>
+#include "graph_rabitq.h"
+#include "graph_res.h"
 #include <getopt.h>
 #include "space.h"
 
@@ -21,8 +23,7 @@ long double rotation_time = 0;
 int probe_base = 50;
 
 template<uint32_t D, uint32_t B>
-void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float> &X, const Matrix<unsigned> &G,
-          const IVFRN<D, B> &ivf, int k) {
+void test(const Matrix<float> &Q, const Matrix<unsigned> &G, const GraphRabit<D, B> &graph, int k) {
     float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
     struct rusage run_start, run_end;
 
@@ -35,17 +36,14 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float
         float total_time = 0;
         float total_ratio = 0;
         int correct = 0;
-#ifdef COUNT_SCAN
-        count_scan = 0;
-        all_dist_count = 0;
-#endif
+
         for (int i = 0; i < Q.n; i++) {
             GetCurTime(&run_start);
-            ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe);
+            ResultHeap KNNs;
+            graph.Search(Q.data + i * Q.d, k, nprobe, KNNs);
             GetCurTime(&run_end);
             GetTime(&run_start, &run_end, &usr_t, &sys_t);
             total_time += usr_t * 1e6;
-            total_ratio += getRatio(i, Q, X, G, KNNs);
 
             int tmp_correct = 0;
             while (KNNs.empty() == false) {
@@ -71,7 +69,7 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<float
 //        cout << "nprobe = " << nprobe << " k = " << k <<" Query Bits "<< B_QUERY << endl;
 //        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
 //        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
-        cout<<recall*100.0<<" "<<1e6 / (time_us_per_query)<<endl;
+        cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
     }
 }
 
@@ -122,98 +120,45 @@ int main(int argc, char *argv[]) {
 
     // ================================================================================================================================
     // Data Files
-    char query_path[256] = "";
-    sprintf(query_path, "%s%s_query.fvecs", source, dataset);
-    Matrix<float> Q(query_path);
-
     char data_path[256] = "";
     sprintf(data_path, "%s%s_base.fvecs", source, dataset);
     Matrix<float> X(data_path);
 
-    char groundtruth_path[256] = "";
-    sprintf(groundtruth_path, "%s%s_groundtruth.ivecs", source, dataset);
-    Matrix<unsigned> G(groundtruth_path);
-
     char transformation_path[256] = "";
-    sprintf(transformation_path, "%sP_C%d_B%d.fvecs", source, numC, bit);
+    sprintf(transformation_path, "%sP.fvecs", source);
     Matrix<float> P(transformation_path);
 
+    char x0_path[256] = "";
+    sprintf(x0_path, "%sx0.fvecs", source);
+    Matrix<float> x0(x0_path);
+
+    char dist_to_centroid_path[256] = "";
+    sprintf(dist_to_centroid_path, "%sx2.fvecs", source);
+    Matrix<float> x2(dist_to_centroid_path);
+
+    char centroid_path[256] = "";
+    sprintf(centroid_path, "%sRandCentroid.fvecs", source);
+    Matrix<float> C(centroid_path);
+
+    char binary_path[256] = "";
+    sprintf(binary_path, "%sRandNet.Ivecs", source);
+    Matrix<uint64_t> binary(binary_path);
+
+    char graph_path[256] = "";
+    sprintf(graph_path, "%s%s.ssg", source, dataset);
+
     char index_path[256] = "";
-    sprintf(index_path, "%sivfrabitq%d_B%d.index", source, numC, bit);
-    std::cerr << index_path << std::endl;
-#if defined(FAST_SCAN)
-    char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivf_fast_scan.log", result_path, dataset, numC, bit);
-#elif defined(SCAN)
-    char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivfrabitq_scan.log", result_path, dataset, numC, bit);
-#endif
-    std::cerr << "Loading Succeed!" << std::endl;
+    sprintf(index_path, "%s%s_rabit.graph", source, dataset);
+    std::cerr << graph_path << std::endl;
+
     // ================================================================================================================================
-
-
-    freopen(result_file_view, "a", stdout);
-    float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
-    struct rusage run_start, run_end;
-    GetCurTime(&run_start);
-
-    Matrix<float> RandQ(Q.n, bit, Q);
-    RandQ = mul(RandQ, P);
-
-    GetCurTime(&run_end);
-    GetTime(&run_start, &run_end, &usr_t, &sys_t);
-    rotation_time = usr_t * 1e6 / Q.n;
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
-    if (str_data == "msong") {
-        const uint32_t BB = 448, DIM = 420;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
-        probe_base = 5;
-        test(Q, RandQ, X, G, ivf, subk);
-    }
     if (str_data == "gist") {
-        const uint32_t BB = 960, DIM = 960;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
+        const uint32_t BB = 128, DIM = 960;
+        GraphRabit<DIM, BB> graph(X);
+        graph.LoadGraph(index_path);
         probe_base = 25;
-        test(Q, RandQ, X, G, ivf, subk);
     }
-    if (str_data == "deep1M") {
-        const uint32_t BB = 256, DIM = 256;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
-        probe_base = 15;
-        test(Q, RandQ, X, G, ivf, subk);
-    }
-    if (str_data == "tiny5m") {
-        const uint32_t BB = 384, DIM = 384;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
-        probe_base = 25;
-        test(Q, RandQ, X, G, ivf, subk);
-    }
-    if (str_data == "word2vec") {
-        const uint32_t BB = 320, DIM = 300;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
-        probe_base = 15;
-        test(Q, RandQ, X, G, ivf, subk);
-    }
-    if (str_data == "sift") {
-        const uint32_t BB = 128, DIM = 128;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
-        probe_base = 8;
-        test(Q, RandQ, X, G, ivf, subk);
-    }
-    if (str_data == "glove2.2m") {
-        const uint32_t BB = 320, DIM = 300;
-        IVFRN<DIM, BB> ivf;
-        ivf.load(index_path);
-        probe_base = 15;
-        test(Q, RandQ, X, G, ivf, subk);
-    }
-
     return 0;
 }
