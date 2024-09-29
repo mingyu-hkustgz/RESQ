@@ -93,5 +93,53 @@ int main(int argc, char *argv[]) {
         std::cerr<<"begin test"<<std::endl;
         graph.Save(index_path);
     }
+    if (str_data == "deep1M") {
+        const uint32_t BB = 256, DIM = 256;
+        GraphRabit<DIM, BB> graph(X, C, x2, x0, binary);
+        std::cerr << "load binary finished" << std::endl;
+        graph.LoadGraph(graph_path);
+        std::cerr<<"begin test"<<std::endl;
+        graph.Save(index_path);
+    }
+    if (str_data == "sift") {
+        const uint32_t BB = 128, DIM = 128;
+        GraphRabit<DIM, BB> graph(X, C, x2, x0, binary);
+        std::cerr << "load binary finished" << std::endl;
+        graph.LoadGraph(graph_path);
+        std::cerr<<"begin test"<<std::endl;
+        graph.Save(index_path);
+    }
+    if (str_data == "msong") {
+        const uint32_t BB = 448, DIM = 420;
+        GraphRabit<DIM, BB> graph(X, C, x2, x0, binary);
+        std::cerr << "load binary finished" << std::endl;
+        graph.LoadGraph(graph_path);
+        std::cerr<<"begin test"<<std::endl;
+        graph.Save(index_path);
+    }
+    if (str_data == "tiny5m") {
+        const uint32_t BB = 384, DIM = 384;
+        GraphRabit<DIM, BB> graph(X, C, x2, x0, binary);
+        std::cerr << "load binary finished" << std::endl;
+        graph.LoadGraph(graph_path);
+        std::cerr<<"begin test"<<std::endl;
+        graph.Save(index_path);
+    }
+    if (str_data == "glove2.2m") {
+        const uint32_t BB = 320, DIM = 300;
+        GraphRabit<DIM, BB> graph(X, C, x2, x0, binary);
+        std::cerr << "load binary finished" << std::endl;
+        graph.LoadGraph(graph_path);
+        std::cerr<<"begin test"<<std::endl;
+        graph.Save(index_path);
+    }
+    if (str_data == "word2vec") {
+        const uint32_t BB = 320, DIM = 300;
+        GraphRabit<DIM, BB> graph(X, C, x2, x0, binary);
+        std::cerr << "load binary finished" << std::endl;
+        graph.LoadGraph(graph_path);
+        std::cerr<<"begin test"<<std::endl;
+        graph.Save(index_path);
+    }
     return 0;
 }

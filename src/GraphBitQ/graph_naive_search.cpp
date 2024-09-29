@@ -157,5 +157,47 @@ int main(int argc, char *argv[]) {
         probe_base = 25;
         test(Q, G, graph, subk);
     }
+    if (str_data == "deep1M") {
+        const uint32_t BB = 256, DIM = 256;
+        GraphRabit<DIM, BB> graph(X);
+        graph.LoadGraph(index_path);
+        probe_base = 25;
+        test(Q, G, graph, subk);
+    }
+    if (str_data == "sift") {
+        const uint32_t BB = 128, DIM = 128;
+        GraphRabit<DIM, BB> graph(X);
+        graph.LoadGraph(index_path);
+        probe_base = 25;
+        test(Q, G, graph, subk);
+    }
+    if (str_data == "msong") {
+        const uint32_t BB = 448, DIM = 420;
+        GraphRabit<DIM, BB> graph(X);
+        graph.LoadGraph(index_path);
+        probe_base = 20;
+        test(Q, G, graph, subk);
+    }
+    if (str_data == "tiny5m") {
+        const uint32_t BB = 384, DIM = 384;
+        GraphRabit<DIM, BB> graph(X);
+        graph.LoadGraph(index_path);
+        probe_base = 100;
+        test(Q, G, graph, subk);
+    }
+    if (str_data == "glove2.2m") {
+        const uint32_t BB = 320, DIM = 300;
+        GraphRabit<DIM, BB> graph(X);
+        graph.LoadGraph(index_path);
+        probe_base = 100;
+        test(Q, G, graph, subk);
+    }
+    if (str_data == "word2vec") {
+        const uint32_t BB = 320, DIM = 300;
+        GraphRabit<DIM, BB> graph(X);
+        graph.LoadGraph(index_path);
+        probe_base = 100;
+        test(Q, G, graph, subk);
+    }
     return 0;
 }

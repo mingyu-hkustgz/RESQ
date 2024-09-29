@@ -159,5 +159,41 @@ int main(int argc, char *argv[]) {
         graph.LoadGraph(graph_path);
         graph.Save(index_path);
     }
+    if (str_data == "deep1M") {
+        const uint32_t BB = 128, DIM = 256;
+        GraphRes<DIM, BB> graph(X, C, x2, x0, binary);
+        graph.LoadGraph(graph_path);
+        graph.Save(index_path);
+    }
+    if (str_data == "sift") {
+        const uint32_t BB = 64, DIM = 128;
+        GraphRes<DIM, BB> graph(X, C, x2, x0, binary);
+        graph.LoadGraph(graph_path);
+        graph.Save(index_path);
+    }
+    if (str_data == "msong") {
+        const uint32_t BB = 128, DIM = 420;
+        GraphRes<DIM, BB> graph(X, C, x2, x0, binary);
+        graph.LoadGraph(graph_path);
+        graph.Save(index_path);
+    }
+    if (str_data == "tiny5m") {
+        const uint32_t BB = 128, DIM = 384;
+        GraphRes<DIM, BB> graph(X, C, x2, x0, binary);
+        graph.LoadGraph(graph_path);
+        graph.Save(index_path);
+    }
+    if (str_data == "glove2.2m") {
+        const uint32_t BB = 256, DIM = 300;
+        GraphRes<DIM, BB> graph(X, C, x2, x0, binary);
+        graph.LoadGraph(graph_path);
+        graph.Save(index_path);
+    }
+    if (str_data == "word2vec") {
+        const uint32_t BB = 256, DIM = 300;
+        GraphRes<DIM, BB> graph(X, C, x2, x0, binary);
+        graph.LoadGraph(graph_path);
+        graph.Save(index_path);
+    }
     return 0;
 }

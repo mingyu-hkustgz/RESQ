@@ -32,6 +32,7 @@ void test(const Matrix<float> &Q,const Matrix<float> &RandQ, const Matrix<unsign
     // ========================================================================
 
     for (int nprobe = probe_base; nprobe <= probe_base * 20; nprobe += probe_base) {
+        if (nprobe < k) continue;
         float total_time = 0;
         float total_ratio = 0;
         int correct = 0;
@@ -167,6 +168,48 @@ int main(int argc, char *argv[]) {
         GraphRes<DIM, BB> graph;
         graph.Load(index_path);
         probe_base = 25;
+        test(PCAQ, RandQ, G, graph, subk);
+    }
+    if (str_data == "deep1M") {
+        const uint32_t BB = 128, DIM = 256;
+        GraphRes<DIM, BB> graph;
+        graph.Load(index_path);
+        probe_base = 25;
+        test(PCAQ, RandQ, G, graph, subk);
+    }
+    if (str_data == "sift") {
+        const uint32_t BB = 64, DIM = 128;
+        GraphRes<DIM, BB> graph;
+        graph.Load(index_path);
+        probe_base = 25;
+        test(PCAQ, RandQ, G, graph, subk);
+    }
+    if (str_data == "msong") {
+        const uint32_t BB = 128, DIM = 420;
+        GraphRes<DIM, BB> graph;
+        graph.Load(index_path);
+        probe_base = 20;
+        test(PCAQ, RandQ, G, graph, subk);
+    }
+    if (str_data == "tiny5m") {
+        const uint32_t BB = 128, DIM = 384;
+        GraphRes<DIM, BB> graph;
+        graph.Load(index_path);
+        probe_base = 100;
+        test(PCAQ, RandQ, G, graph, subk);
+    }
+    if (str_data == "glove2.2m") {
+        const uint32_t BB = 256, DIM = 300;
+        GraphRes<DIM, BB> graph;
+        graph.Load(index_path);
+        probe_base = 100;
+        test(PCAQ, RandQ, G, graph, subk);
+    }
+    if (str_data == "word2vec") {
+        const uint32_t BB = 256, DIM = 300;
+        GraphRes<DIM, BB> graph;
+        graph.Load(index_path);
+        probe_base = 100;
         test(PCAQ, RandQ, G, graph, subk);
     }
     return 0;

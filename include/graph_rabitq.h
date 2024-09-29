@@ -93,7 +93,7 @@ GraphRabit<D, B>::GraphRabit(const Matrix<float> &X, const Matrix<float> &centro
     fac = new Factor[nd_];
 
     std::memcpy(data_, X.data, nd_ * D * sizeof(float));
-    std::memcpy(centroid_, centroid.data, D * sizeof(float));
+    std::memcpy(centroid_, centroid.data, B * sizeof(float));
     std::memcpy(x0, _x0.data, nd_ * sizeof(float));
     std::memcpy(binary_code, binary.data, nd_ * (B / 64) * sizeof(uint64_t));
 
