@@ -7,7 +7,7 @@ from utils import *
 import matplotlib.pyplot as plt
 
 source = './DATA'
-color = ["r", "b", "y", "g"]
+verbose = True
 
 
 def Orthogonal(D):
@@ -16,42 +16,52 @@ def Orthogonal(D):
     return Q
 
 
-def lift_proj(X, bits, iter=301):
-    count = 0
+def lift_proj(X, iter=100):
+    N, D = X.shape
     var = np.var(X, axis=0)
     mean_var = np.mean(var)
-    R = Orthogonal(bits)
+    P = Orthogonal(D)
     diag_var = np.diag(var)
-    Z = R @ diag_var @ R.T
+    Z = P @ diag_var @ P.T
     for i in tqdm(range(iter)):
         T = Z
-        for j in range(bits):
+        for j in range(D):
             T[j][j] = mean_var
-        _, R = np.linalg.eig(T)
-        Z = R @ diag_var @ R.T
+        _, P = np.linalg.eig(T)
+        Z = P @ diag_var @ P.T
 
-    return R
+    if verbose:
+        XP = np.dot(X, P.T)
+        bin_XP = (XP > 0)
+        bin_XP = (2 * bin_XP[:, :D] - 1) / D ** 0.5
+        x0 = np.sum(XP[:, :D] * bin_XP, axis=1, keepdims=True)
+        print(f"similarity to centroid {round(np.mean(x0), 4)} at iteration:: {iter}")
+
+    return P
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='random projection')
+    parser = argparse.ArgumentParser(description='trace projection')
     parser.add_argument('-d', '--dataset', help='dataset', default='deep1M')
+    parser.add_argument('-b', '--bits', help='quantized bits', default=128)
+
     args = vars(parser.parse_args())
     dataset = args['dataset']
+    bits = int(args['bits'])
     # path
     path = os.path.join(source, dataset)
-    data_path = os.path.join(path, f'{dataset}_base.fvecs')
+    data_path = os.path.join(path, f'{dataset}_proj.fvecs')
 
-    # read data vectors
-    X = fvecs_read(data_path)
+    X = read_fvecs(data_path)
 
-    N, D = X.shape
+    X = X[:, :bits]
+    D = X.shape[1]
     B = (D + 63) // 64 * 64
     MAX_BD = max(D, B)
 
     projection_path = os.path.join(path, f'P-t.fvecs')
-    RN_path = os.path.join(path, f'Rand-t.Ivecs')
     centroid_path = os.path.join(path, f'RandCentroid-t.fvecs')
+    RN_path = os.path.join(path, f'Rand-t.Ivecs')
     x2_path = os.path.join(path, f'x2-t.fvecs')
     x0_path = os.path.join(path, f'x0-t.fvecs')
 
@@ -59,17 +69,10 @@ if __name__ == "__main__":
     np.random.seed(0)
 
     # The inverse of an orthogonal matrix equals to its transpose.
-    pca = PCA(n_components=MAX_BD)
-    if X_pad.shape[0] < 1000000:
-        pca.fit(X)
-    else:
-        pca.fit(X_pad[:1000000])
-    PCA_matrix = pca.components_.T
-    XP = np.dot(X_pad, PCA_matrix)
-    X_mean = np.mean(XP, axis=0)
-    XP -= X_mean
 
-    P = lift_proj(XP, MAX_BD)
+    X_mean = np.mean(X_pad, axis=0)
+    X_pad -= X_mean
+    P = lift_proj(X_pad)
     P = P.T
     XP = np.dot(X_pad, P)
 
@@ -94,4 +97,4 @@ if __name__ == "__main__":
     to_fvecs(x0_path, x0)
     to_fvecs(x2_path, x2)
     to_fvecs(centroid_path, X_mean.reshape((1, D)))
-    to_fvecs(projection_path, PCA_matrix)
+    to_fvecs(projection_path, P)

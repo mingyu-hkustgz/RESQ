@@ -40,7 +40,7 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
         for (int i = 0; i < Q.n; i++) {
             GetCurTime(&run_start);
             ResultHeap KNNs;
-            graph.SearchRabit(Q.data + i * Q.d, RandQ.data + i * Q.d, k, nprobe, KNNs);
+            graph.SearchRabit(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe, KNNs);
             GetCurTime(&run_end);
             GetTime(&run_start, &run_end, &usr_t, &sys_t);
             total_time += usr_t * 1e6;

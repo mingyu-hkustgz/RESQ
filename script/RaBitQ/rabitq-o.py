@@ -24,7 +24,7 @@ def GenerateBinaryCode(X, P):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='random projection')
-    parser.add_argument('-d', '--dataset', help='dataset', default='gist')
+    parser.add_argument('-d', '--dataset', help='dataset', default='word2vec')
     args = vars(parser.parse_args())
     dataset = args['dataset']
     # path

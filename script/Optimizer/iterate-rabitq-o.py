@@ -6,7 +6,9 @@ from utils import *
 import argparse
 from tqdm import tqdm
 from sklearn.decomposition import PCA
+
 source = './DATA'
+verbose = False
 
 
 def Orthogonal(D):
@@ -21,6 +23,7 @@ def GenerateBinaryCode(X, P):
     X0 = np.sum(XP * (2 * binary_XP - 1) / D ** 0.5, axis=1, keepdims=True) / np.linalg.norm(XP, axis=1, keepdims=True)
     return binary_XP, X0
 
+
 def pca_iterate_quantized(X, max_iter=5):
     X_norm = np.linalg.norm(X, axis=1, keepdims=True)
     X_norm[X_norm == 0] = 1
@@ -32,48 +35,48 @@ def pca_iterate_quantized(X, max_iter=5):
         XP = np.dot(X, P)
         bin_XP = (XP > 0)
         bin_XP = (2 * bin_XP[:, :D] - 1) / D ** 0.5
+        if verbose:
+            x0 = np.sum(XP[:, :D] * bin_XP, axis=1, keepdims=True)
+            print(f"similarity to centroid {round(np.mean(x0), 4)} at iteration:: {i}")
         [U, _, VT] = np.linalg.svd(bin_XP.T @ X)
         P = (VT.T @ U.T)
 
-    return P
+    return P.T
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='random projection')
+    parser = argparse.ArgumentParser(description='iterate projection')
     parser.add_argument('-d', '--dataset', help='dataset', default='deep1M')
+    parser.add_argument('-b', '--bits', help='quantized bits', default=128)
+
     args = vars(parser.parse_args())
     dataset = args['dataset']
+    bits = int(args['bits'])
     # path
     path = os.path.join(source, dataset)
-    data_path = os.path.join(path, f'{dataset}_base.fvecs')
+    data_path = os.path.join(path, f'{dataset}_proj.fvecs')
 
     X = read_fvecs(data_path)
 
-    N, D = X.shape
+    X = X[:, :bits]
+    D = X.shape[1]
     B = (D + 63) // 64 * 64
     MAX_BD = max(D, B)
 
-    projection_path = os.path.join(path, f'P-o.fvecs')
-    RN_path = os.path.join(path, f'Rand-o.Ivecs')
-    centroid_path = os.path.join(path, f'RandCentroid-o.fvecs')
-    x2_path = os.path.join(path, f'x2-o.fvecs')
-    x0_path = os.path.join(path, f'x0-o.fvecs')
+    projection_path = os.path.join(path, f'RESP-o.fvecs')
+    centroid_path = os.path.join(path, f'RESCentroid-o.fvecs')
+    RN_path = os.path.join(path, f'RES_Rand-o.Ivecs')
+    x2_path = os.path.join(path, f'RES_x2-o.fvecs')
+    x0_path = os.path.join(path, f'RES_x0-o.fvecs')
 
     X_pad = np.pad(X, ((0, 0), (0, MAX_BD - D)), 'constant')
     np.random.seed(0)
 
     # The inverse of an orthogonal matrix equals to its transpose.
-    pca = PCA(n_components=MAX_BD)
-    if X_pad.shape[0] < 1000000:
-        pca.fit(X)
-    else:
-        pca.fit(X_pad[:1000000])
-    PCA_matrix = pca.components_.T
-    XP = np.dot(X_pad, PCA_matrix)
-    X_mean = np.mean(XP, axis=0)
-    XP -= X_mean
 
-    P = pca_iterate_quantized(XP, 20)
+    X_mean = np.mean(X_pad, axis=0)
+    X_pad -= X_mean
+    P = pca_iterate_quantized(X_pad, 20)
     P = P.T
     XP = np.dot(X_pad, P)
 
@@ -99,4 +102,4 @@ if __name__ == "__main__":
     to_fvecs(x0_path, x0)
     to_fvecs(x2_path, x2)
     to_fvecs(centroid_path, X_mean.reshape((1, D)))
-    to_fvecs(projection_path, PCA_matrix)
+    to_fvecs(projection_path, P)
