@@ -13,8 +13,8 @@ source = './DATA'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='random projection')
-    parser.add_argument('-d', '--dataset', help='dataset', default='gist')
-    parser.add_argument('-b', '--bit', help='quantized bits', default=128)
+    parser.add_argument('-d', '--dataset', help='dataset', default='OpenAI-1536')
+    parser.add_argument('-b', '--bit', help='quantized bits', default=512)
     args = vars(parser.parse_args())
     dataset = args['dataset']
     bits = int(args['bit'])
@@ -26,12 +26,22 @@ if __name__ == "__main__":
     X = fvecs_read(data_path)
     N, D = X.shape
     pca = PCA(n_components=D)
-    pca.fit(X)
+    if N < 1000000:
+        pca.fit(X)
+    else:
+        pca.fit(X[:1000000])
     projection_matrix = pca.components_.T
     base = np.dot(X, projection_matrix)
 
+    mean_ = np.mean(base[:1000000], axis=0)
+    var_ = np.var(base[:1000000], axis=0)
+    base -= mean_
+    mean_var = np.vstack((mean_, var_))
+
     pca_data_path = os.path.join(path, f'{dataset}_proj.fvecs')
     matrix_save_path = os.path.join(path, f'{dataset}_pca.fvecs')
+    mean_save_path = os.path.join(path, f'{dataset}_mean.fvecs')
 
     fvecs_write(pca_data_path, base)
     fvecs_write(matrix_save_path, projection_matrix)
+    fvecs_write(mean_save_path, mean_var)

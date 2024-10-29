@@ -22,6 +22,7 @@
 
 const uint32_t B_QUERY = 4, numC = 4096;
 unsigned count_scan = 0, all_dist_count = 0;
+float var_count = 5.0;
 
 template<uint32_t D, uint32_t B>
 class Space {
@@ -49,6 +50,26 @@ public:
     Space() {};
 
     ~Space() {};
+};
+
+class Disk_IO {
+public:
+    std::ifstream IO;
+    unsigned D=0;
+
+    void init_data_file(char *filename) {
+        IO.open(filename, std::ios::binary);
+        IO.read((char *) &D, sizeof(unsigned));
+    }
+
+    void single_disk_io(unsigned id, float *vec) {
+        IO.seekg(std::ios::beg + (sizeof(float) * (D + 1)) * id + sizeof(float));
+        IO.read((char *) vec, sizeof(float) * D);
+    }
+
+    Disk_IO() = default;
+
+    ~Disk_IO() = default;
 };
 
 

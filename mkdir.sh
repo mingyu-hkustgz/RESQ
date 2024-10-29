@@ -6,6 +6,7 @@ mkdir ./results/recall@100
 mkdir ./results/time-log
 mkdir ./results/space-log
 
+rm -r cmake-build-debug
 mkdir cmake-build-debug
 cd cmake-build-debug
 cmake ..
@@ -20,7 +21,6 @@ for dataset in "${datasets[@]}";
 do
   echo $dataset
   mkdir ./DATA/${dataset}
-  mkdir ./DATA/${dataset}/
   mkdir ./results/recall@20/${dataset}
   mkdir ./results/recall@100/${dataset}
   mkdir ./results/time-log/${datasets}

@@ -6,9 +6,9 @@ from utils import *
 import argparse
 from tqdm import tqdm
 from sklearn.decomposition import PCA
-
+import matplotlib.pyplot as plt
 source = './DATA'
-verbose = False
+verbose = True
 
 
 def Orthogonal(D):
@@ -46,8 +46,8 @@ def pca_iterate_quantized(X, max_iter=5):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='iterate projection')
-    parser.add_argument('-d', '--dataset', help='dataset', default='deep1M')
-    parser.add_argument('-b', '--bits', help='quantized bits', default=128)
+    parser.add_argument('-d', '--dataset', help='dataset', default='gist')
+    parser.add_argument('-b', '--bits', help='quantized bits', default=256)
 
     args = vars(parser.parse_args())
     dataset = args['dataset']
@@ -73,10 +73,10 @@ if __name__ == "__main__":
     np.random.seed(0)
 
     # The inverse of an orthogonal matrix equals to its transpose.
-
+    X_mean = np.zeros(D)
     X_mean = np.mean(X_pad, axis=0)
     X_pad -= X_mean
-    P = pca_iterate_quantized(X_pad, 20)
+    P = pca_iterate_quantized(X_pad, 10)
     P = P.T
     XP = np.dot(X_pad, P)
 
@@ -92,6 +92,9 @@ if __name__ == "__main__":
     x0[~np.isfinite(x0)] = 0.8
 
     print(np.mean(x0))
+    print(np.mean(x2*(1-x0)**2))
+    plt.hist(x0, bins=100)
+    plt.show()
 
     bin_XP = bin_XP[:, :B].flatten()
     uint64_XP = np.packbits(bin_XP.reshape(-1, 8, 8)[:, ::-1]).view(np.uint64)

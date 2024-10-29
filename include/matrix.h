@@ -285,6 +285,18 @@ Matrix<T> mul(const Matrix<T> &A, const Matrix<T> &B) {
 }
 
 template<typename T>
+Matrix<T> cen(const Matrix<T> &A, const Matrix<T> &B) {
+
+    std::cerr << "Matrix Centering - " << A.n << " " << A.d << std::endl;
+    Matrix<T> result(A.n, A.d);
+
+    for (int i = 0; i < A.n; i++)
+        for (int j = 0; j < A.d; j++)
+            result.data[i * A.d + j] = A.data[i * A.d + j] - B.data[j];
+    return result;
+}
+
+template<typename T>
 Matrix<T> para_mul(const Matrix<T> &A, const Matrix<T> &B) {
 
     std::cerr << "Parallel Matrix Multiplication - " << A.n << " " << A.d << " " << B.d << std::endl;

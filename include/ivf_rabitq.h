@@ -61,7 +61,7 @@ public:
           const Matrix<float> &_x0, const Matrix<uint32_t> &cluster_id, const Matrix<uint64_t> &binary);
     ~IVFRN();
 
-    ResultHeap search(float* query, float* rd_query, uint32_t k, uint32_t nprobe, float distK = std::numeric_limits<float>::max()) const;
+    ResultHeap search(float* query, float* rd_query, uint32_t k, uint32_t nprobe, float distK = std::numeric_limits<float>::max(), Disk_IO *read_buffer=nullptr) const;
 
     static void scan(ResultHeap &KNNs, float &distK, uint32_t k, \
                         uint64_t *quant_query, uint64_t *ptr_binary_code,  uint32_t len, Factor *ptr_fac, \
@@ -72,6 +72,11 @@ public:
                         uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac, \
                         const float  sqr_y, const float vl, const float  width, const float sumq,\
                         float *query, float *data, uint32_t *id);
+
+    static void disk_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
+                        uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac, \
+                        const float  sqr_y, const float vl, const float  width, const float sumq,\
+                        float *query, float *data, uint32_t *id, Disk_IO *read_buffer);
 
     void save(char* filename);
     void load(char* filename);
@@ -246,9 +251,99 @@ void IVFRN<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
     }
 }
 
+template <uint32_t D, uint32_t B>
+void IVFRN<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
+                        uint8_t *LUT, uint8_t *packed_code,  uint32_t len, Factor *ptr_fac, \
+                        const float sqr_y, const float vl, const float width, const float sumq, \
+                        float *query, float *data, uint32_t *id, Disk_IO *read_buffer){
+    float buffer[D];
+    for(int i=0;i<B/4*16;i++)LUT[i] *= 2;
+    float y = std::sqrt(sqr_y);
+    constexpr uint32_t SIZE = 32;
+    uint32_t it = len / SIZE;
+    uint32_t remain = len - it * SIZE;
+    uint32_t nblk_remain = (remain + 31) / 32;
+
+    while(it --){
+        float low_dist[SIZE];
+        float *ptr_low_dist = &low_dist[0];
+        uint16_t PORTABLE_ALIGN32 result[SIZE];
+        accumulate<B>((SIZE / 32), packed_code, LUT, result);
+        packed_code += SIZE * B / 8;
+
+        for(int i=0;i<SIZE;i++){
+            float tmp_dist = (ptr_fac -> sqr_x) + sqr_y + ptr_fac -> factor_ppc * vl + (result[i]-sumq) * (ptr_fac -> factor_ip) * width;
+            float error_bound = y * (ptr_fac -> error);
+            *ptr_low_dist = tmp_dist - error_bound;
+            ptr_fac ++;
+            ptr_low_dist ++;
+#ifdef COUNT_SCAN
+            all_dist_count++;
+#endif
+        }
+        ptr_low_dist = &low_dist[0];
+        for(int j=0;j<SIZE;j++){
+            if(*ptr_low_dist < distK){
+                read_buffer->single_disk_io(*id, buffer);
+                float gt_dist = sqr_dist<D>(query, buffer);
+#ifdef COUNT_SCAN
+                count_scan++;
+#endif
+                if(gt_dist < distK){
+                    KNNs.emplace(gt_dist, *id);
+                    if(KNNs.size() > k) KNNs.pop();
+                    if(KNNs.size() == k)distK = KNNs.top().first;
+                }
+            }
+            data += D;
+            ptr_low_dist++;
+            id++;
+        }
+    }
+
+    {
+        float low_dist[SIZE];
+        float *ptr_low_dist = &low_dist[0];
+        uint16_t PORTABLE_ALIGN32 result[SIZE];
+        accumulate<B>(nblk_remain, packed_code, LUT, result);
+
+        for(int i=0;i<remain;i++){
+            float tmp_dist = (ptr_fac -> sqr_x) + sqr_y + ptr_fac -> factor_ppc * vl + (result[i] - sumq) * ptr_fac -> factor_ip * width;
+            float error_bound = y * (ptr_fac -> error);
+#ifdef COUNT_SCAN
+            all_dist_count++;
+#endif
+
+            // ***********************************************************************************************
+            *ptr_low_dist = tmp_dist - error_bound;
+            ptr_fac ++;
+            ptr_low_dist ++;
+        }
+        ptr_low_dist = &low_dist[0];
+        for(int i=0;i<remain;i++){
+            if(*ptr_low_dist < distK){
+                read_buffer->single_disk_io(*id, buffer);
+                float gt_dist = sqr_dist<D>(query, buffer);
+#ifdef COUNT_SCAN
+                count_scan++;
+#endif
+                if(gt_dist < distK){
+                    KNNs.emplace(gt_dist, *id);
+                    if(KNNs.size() > k) KNNs.pop();
+                    if(KNNs.size() == k)distK = KNNs.top().first;
+                }
+            }
+            data += D;
+            ptr_low_dist++;
+            id++;
+        }
+    }
+}
+
+
 // search impl
 template <uint32_t D, uint32_t B>
-ResultHeap IVFRN<D, B>::search(float* query, float* rd_query, uint32_t k, uint32_t nprobe, float distK) const{
+ResultHeap IVFRN<D, B>::search(float* query, float* rd_query, uint32_t k, uint32_t nprobe, float distK, Disk_IO *read_buffer) const{
     // The default value of distK is +inf
     ResultHeap KNNs;
     // ===========================================================================================================
@@ -294,6 +389,11 @@ ResultHeap IVFRN<D, B>::search(float* query, float* rd_query, uint32_t k, uint32
                 quant_query, binary_code + start[c] * (B / 64), len[c], fac + start[c], \
                 sqr_y, vl, width, sum_q,\
                 query, data + start[c] * D, id + start[c]);
+#elif defined(DISK_SCAN)
+        disk_scan(KNNs, distK, k, \
+                LUT, packed_code + packed_start[c], len[c], fac + start[c], \
+                sqr_y, vl, width, sum_q,\
+                query, data + start[c] * D, id + start[c], read_buffer);
 #elif defined(FAST_SCAN)
         fast_scan(KNNs, distK, k, \
                 LUT, packed_code + packed_start[c], len[c], fac + start[c], \
@@ -327,9 +427,10 @@ void IVFRN<D, B>::save(char * filename){
     output.write((char *) x0        , N * sizeof(float));
 
     output.write((char *) centroid, C * B * sizeof(float));
-    output.write((char *) data, N * D * sizeof(float));
     output.write((char *) binary_code, N * B / 64 * sizeof(uint64_t));
-
+#ifndef DISK_SCAN
+    output.write((char *) data, N * D * sizeof(float));
+#endif
     output.close();
     std::cerr << "Saved!" << std::endl;
 }
@@ -365,7 +466,6 @@ void IVFRN<D, B>::load(char * filename){
 #endif
 
     centroid     = new float [C * B];
-    data         = new float [N * D];
 
     binary_code  = static_cast<uint64_t*>(aligned_alloc(256, N * B / 64 * sizeof(uint64_t)));
 
@@ -374,7 +474,6 @@ void IVFRN<D, B>::load(char * filename){
     id           = new uint32_t [N];
     dist_to_c    = new float [N];
     x0           = new float [N];
-
     fac          = new Factor[N];
 
     input.read((char *) start      , C * sizeof(uint32_t));
@@ -382,11 +481,12 @@ void IVFRN<D, B>::load(char * filename){
     input.read((char *) id         , N * sizeof(uint32_t));
     input.read((char *) dist_to_c  , N * sizeof(float));
     input.read((char *) x0         , N * sizeof(float));
-
     input.read((char *) centroid   , C * B * sizeof(float));
-    input.read((char *) data, N * D * sizeof(float));
     input.read((char *) binary_code, N * B / 64 * sizeof(uint64_t));
-
+#ifndef DISK_SCAN
+    data         = new float [N * D];
+    input.read((char *) data, N * D * sizeof(float));
+#endif
 #if defined(FAST_SCAN)
     packed_start = new uint32_t [C];
     int cur = 0;
@@ -475,7 +575,9 @@ IVFRN<D, B>::IVFRN(const Matrix<float> &X, const Matrix<float> &_centroids, cons
 
     for(int i=0;i<N;i++){
         int x = id[i];
+#ifndef DISK_SCAN
         std::memcpy(data_ptr, X.data + x * D, D * sizeof(float));
+#endif
         std::memcpy(binary_code_ptr, binary.data + x * (B / 64), (B / 64) * sizeof(uint64_t));
         data_ptr += D;
         binary_code_ptr += B / 64;

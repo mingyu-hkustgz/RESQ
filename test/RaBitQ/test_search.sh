@@ -16,9 +16,16 @@ for data in "${datasets[@]}"; do
       B=128
     elif [ $data == "gist" ]; then
       B=960
+    elif [ $data == "OpenAI-1536" ]; then
+      B=1536
+    elif [ $data == "OpenAI-3072" ]; then
+      B=3072
+    elif [ $data == "msmarc-small" ]; then
+      B=1024
     fi
     res="${result_path}/recall@${K}/${data}/"
     ./cmake-build-debug/src/rabit_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
     ./cmake-build-debug/src/rabit_fast_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
+    ./cmake-build-debug/src/rabit_fast_disk_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
   done
 done

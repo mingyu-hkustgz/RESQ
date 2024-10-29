@@ -16,9 +16,16 @@ for data in "${datasets[@]}"; do
       B=64
     elif [ $data == "glove2.2m" ]; then
       B=256
+    elif [ $data == "OpenAI-1536" ]; then
+      B=512
+    elif [ $data == "OpenAI-3072" ]; then
+      B=512
+    elif [ $data == "msmarc-small" ]; then
+      B=256
     fi
     res="${result_path}/recall@${K}/${data}/"
     ./cmake-build-debug/src/res_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
     ./cmake-build-debug/src/res_split_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
+    ./cmake-build-debug/src/res_disk_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
   done
 done

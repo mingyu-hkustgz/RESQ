@@ -19,4 +19,5 @@ __pycache__
 *.html
 *.pdf
 *.pt
+*.log
 local_test*
