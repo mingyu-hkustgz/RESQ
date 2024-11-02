@@ -24,7 +24,7 @@ char data_path[256] = "";
 template<uint32_t D, uint32_t B>
 void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsigned> &G,
           const IVFRN<D, B> &ivf, int k) {
-    float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
+    float sys_t, usr_t, usr_t_sum = 0, search_time = 0;
     struct rusage run_start, run_end;
 
     // ========================================================================
@@ -36,53 +36,47 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
     auto read_buffer = new Disk_IO;
     read_buffer->init_data_file(data_path);
 #endif
-
-    for (int nprobe = probe_base; nprobe <= probe_base * 20; nprobe += probe_base) {
-        float total_time = 0;
-        float total_ratio = 0;
-        int correct = 0;
+    float total_time = 0;
+    float total_ratio = 0;
+    int correct = 0;
 #ifdef COUNT_SCAN
-        count_scan = 0;
-        all_dist_count = 0;
+    count_scan = 0;
+    all_dist_count = 0;
 #endif
-        for (int i = 0; i < Q.n; i++) {
-            GetCurTime(&run_start);
+    for (int i = 0; i < Q.n; i++) {
+        GetCurTime(&run_start);
 #if defined(DISK_SCAN)
-            ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe,
-                                         std::numeric_limits<float>::max(), read_buffer);
+        ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, probe_base,
+                                     std::numeric_limits<float>::max(), read_buffer);
 #else
-            ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe);
+        ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe);
 #endif
-            GetCurTime(&run_end);
-            GetTime(&run_start, &run_end, &usr_t, &sys_t);
-            total_time += usr_t * 1e6;
+        GetCurTime(&run_end);
+        GetTime(&run_start, &run_end, &usr_t, &sys_t);
+        total_time += usr_t * 1e6;
 
-            int tmp_correct = 0;
-            while (KNNs.empty() == false) {
-                int id = KNNs.top().second;
-                KNNs.pop();
-                for (int j = 0; j < k; j++)
-                    if (id == G.data[i * G.d + j])tmp_correct++;
-            }
-            correct += tmp_correct;
+        int tmp_correct = 0;
+        while (KNNs.empty() == false) {
+            int id = KNNs.top().second;
+            KNNs.pop();
+            for (int j = 0; j < k; j++)
+                if (id == G.data[i * G.d + j])tmp_correct++;
         }
-        float time_us_per_query = total_time / Q.n + rotation_time;
-        float recall = 1.0f * correct / (Q.n * k);
+        correct += tmp_correct;
+    }
+    float time_us_per_query = total_time / Q.n + rotation_time;
+    float recall = 1.0f * correct / (Q.n * k);
 
 //        cout << "------------------------------------------------" << endl;
 #ifdef COUNT_SCAN
-        cout << "Count Full Scan " << count_scan << endl;
-        cout << "All Distance Count " << all_dist_count << endl;
-        cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
+    cout << "Count Full Scan " << count_scan << endl;
+    cout << "All Distance Count " << all_dist_count << endl;
+    cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
 #endif
 //        cout << "nprobe = " << nprobe << " k = " << k <<" Query Bits "<< B_QUERY << endl;
 //        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
 //        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
-        cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
-    }
-#if defined(DISK_SCAN)
-    cout << "MEM Peak:: " << getPeakRSS() << endl;
-#endif
+    cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -110,7 +104,7 @@ int main(int argc, char *argv[]) {
     int subk = 0;
 
     while (iarg != -1) {
-        iarg = getopt_long(argc, argv, "d:r:k:s:b:", longopts, &ind);
+        iarg = getopt_long(argc, argv, "d:r:k:s:b:p:", longopts, &ind);
         switch (iarg) {
             case 'k':
                 if (optarg)subk = atoi(optarg);
@@ -126,6 +120,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'b':
                 if (optarg) bit = atoi(optarg);
+                break;
+            case 'p':
+                if (optarg) probe_base = atoi(optarg);
                 break;
         }
     }
@@ -149,16 +146,8 @@ int main(int argc, char *argv[]) {
     sprintf(index_path, "%sivfrabitq%d_B%d.index", source, numC, bit);
     std::cerr << index_path << std::endl;
 
-#if  defined(DISK_SCAN)
     char result_file_view[256] = "";
     sprintf(result_file_view, "%s%s_ivf_disk_scan.log", result_path, dataset, numC, bit);
-#elif defined(FAST_SCAN)
-    char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivf_fast_scan.log", result_path, dataset, numC, bit);
-#elif defined(SCAN)
-    char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivfrabitq_scan.log", result_path, dataset, numC, bit);
-#endif
     std::cerr << result_file_view << std::endl;
     std::cerr << "Loading Succeed!" << std::endl;
     // ================================================================================================================================
@@ -181,71 +170,65 @@ int main(int argc, char *argv[]) {
         const uint32_t BB = 448, DIM = 420;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 5;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "gist") {
         const uint32_t BB = 960, DIM = 960;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 25;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "deep1M") {
         const uint32_t BB = 256, DIM = 256;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 15;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "tiny5m") {
         const uint32_t BB = 384, DIM = 384;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 25;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "word2vec") {
         const uint32_t BB = 320, DIM = 300;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 15;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "sift") {
         const uint32_t BB = 128, DIM = 128;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 8;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "glove2.2m") {
         const uint32_t BB = 320, DIM = 300;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 15;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "OpenAI-1536") {
         const uint32_t BB = 1536, DIM = 1536;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 30;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "OpenAI-3072") {
         const uint32_t BB = 3072, DIM = 3072;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 30;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "msmarc-small") {
         const uint32_t BB = 1024, DIM = 1024;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 30;
         test(Q, RandQ, G, ivf, subk);
     }
+    char mem_peak_file[256] = "";
+    sprintf(mem_peak_file, "./results/space-log/%s/%s-mem-peak.log", dataset, dataset);
+    std::ofstream fout(mem_peak_file);
+    fout << "MEM Peak:: " << getPeakRSS() << endl;
     return 0;
 }

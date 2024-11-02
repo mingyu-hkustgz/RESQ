@@ -31,11 +31,6 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
     // Search Parameter
     // ========================================================================
 
-#if defined(DISK_SCAN)
-    auto read_buffer = new Disk_IO;
-    read_buffer->init_data_file(data_path);
-#endif
-
     for (int nprobe = probe_base; nprobe <= probe_base * 20; nprobe += probe_base) {
         float total_time = 0;
         float total_ratio = 0;
@@ -46,12 +41,7 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
 #endif
         for (int i = 0; i < Q.n; i++) {
             GetCurTime(&run_start);
-#if defined(DISK_SCAN)
-            ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe,
-                                         std::numeric_limits<float>::max(), read_buffer);
-#else
             ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe);
-#endif
             GetCurTime(&run_end);
             GetTime(&run_start, &run_end, &usr_t, &sys_t);
             total_time += usr_t * 1e6;
@@ -79,9 +69,6 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
 //        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
         cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
     }
-#if defined(DISK_SCAN)
-    cout << "MEM Peak:: " << getPeakRSS() << endl;
-#endif
 }
 
 int main(int argc, char *argv[]) {
@@ -161,11 +148,8 @@ int main(int argc, char *argv[]) {
 #endif
 
     std::cerr << index_path << std::endl;
-
     char result_file_view[256] = "";
-#if  defined(DISK_SCAN)
-    sprintf(result_file_view, "%s%s_ivf_disk_res_scan.log", result_path, dataset, numC, bit);
-#elif defined(RESIDUAL_SPLIT)
+#if defined(RESIDUAL_SPLIT)
     sprintf(result_file_view, "%s%s_ivf_split_scan.log", result_path, dataset, numC, bit);
 #else
     sprintf(result_file_view, "%s%s_ivf_res_scan.log", result_path, dataset, numC, bit);
@@ -252,7 +236,7 @@ int main(int argc, char *argv[]) {
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
-        var_count = 20;
+        var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "OpenAI-3072") {
@@ -260,15 +244,15 @@ int main(int argc, char *argv[]) {
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
-        var_count = 20;
+        var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "msmarc-small") {
-        const uint32_t BB = 256, DIM = 1024;
+        const uint32_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
-        var_count = 8;
+        var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
     return 0;

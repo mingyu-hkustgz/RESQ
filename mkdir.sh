@@ -23,7 +23,7 @@ do
   mkdir ./DATA/${dataset}
   mkdir ./results/recall@20/${dataset}
   mkdir ./results/recall@100/${dataset}
-  mkdir ./results/time-log/${datasets}
-  mkdir ./results/space-log/${datasets}
+  mkdir ./results/time-log/${dataset}
+  mkdir ./results/space-log/${dataset}
   mkdir ./figure/${dataset}
 done

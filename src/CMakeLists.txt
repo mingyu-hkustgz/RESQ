@@ -11,7 +11,7 @@ target_compile_definitions(rabit_fast_scan_search PRIVATE FAST_SCAN)
 add_executable(rabit_scan_search RaBitQ/search.cpp)
 target_compile_definitions(rabit_scan_search PRIVATE SCAN)
 
-add_executable(rabit_fast_disk_search RaBitQ/search.cpp)
+add_executable(rabit_fast_disk_search RaBitQ/disk_search.cpp)
 target_compile_definitions(rabit_fast_disk_search PRIVATE FAST_SCAN DISK_SCAN)
 
 add_executable(res_index ResBitQ/res_index.cpp)
@@ -26,6 +26,6 @@ add_executable(res_search ResBitQ/res_search.cpp)
 add_executable(res_split_search ResBitQ/res_search.cpp)
 target_compile_definitions(res_split_search PRIVATE RESIDUAL_SPLIT)
 
-add_executable(res_disk_search ResBitQ/res_search.cpp)
+add_executable(res_disk_search ResBitQ/disk_res_search.cpp)
 target_compile_definitions(res_disk_search PRIVATE DISK_SCAN)
 

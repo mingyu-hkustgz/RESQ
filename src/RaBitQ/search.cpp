@@ -31,12 +31,6 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
     // Search Parameter
 
     // ========================================================================
-
-#if defined(DISK_SCAN)
-    auto read_buffer = new Disk_IO;
-    read_buffer->init_data_file(data_path);
-#endif
-
     for (int nprobe = probe_base; nprobe <= probe_base * 20; nprobe += probe_base) {
         float total_time = 0;
         float total_ratio = 0;
@@ -47,12 +41,7 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
 #endif
         for (int i = 0; i < Q.n; i++) {
             GetCurTime(&run_start);
-#if defined(DISK_SCAN)
-            ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe,
-                                         std::numeric_limits<float>::max(), read_buffer);
-#else
             ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe);
-#endif
             GetCurTime(&run_end);
             GetTime(&run_start, &run_end, &usr_t, &sys_t);
             total_time += usr_t * 1e6;
@@ -80,9 +69,6 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
 //        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
         cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
     }
-#if defined(DISK_SCAN)
-    cout << "MEM Peak:: " << getPeakRSS() << endl;
-#endif
 }
 
 int main(int argc, char *argv[]) {
@@ -149,10 +135,7 @@ int main(int argc, char *argv[]) {
     sprintf(index_path, "%sivfrabitq%d_B%d.index", source, numC, bit);
     std::cerr << index_path << std::endl;
 
-#if  defined(DISK_SCAN)
-    char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivf_disk_scan.log", result_path, dataset, numC, bit);
-#elif defined(FAST_SCAN)
+#if defined(FAST_SCAN)
     char result_file_view[256] = "";
     sprintf(result_file_view, "%s%s_ivf_fast_scan.log", result_path, dataset, numC, bit);
 #elif defined(SCAN)

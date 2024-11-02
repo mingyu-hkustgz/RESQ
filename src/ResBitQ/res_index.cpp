@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
         ivf.save(index_path);
     }
     if (str_data == "msmarc-small") {
-        const uint32_t BB = 256, DIM = 1024;
+        const uint32_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
