@@ -1,5 +1,8 @@
 set(CMAKE_CXX_STANDARD 17)
 
+add_executable(index_hnsw HNSW/index_hnsw.cpp)
+add_executable(search_hnsw HNSW/search_hnsw.cpp)
+
 add_executable(rabit_index RaBitQ/index.cpp)
 
 add_executable(rabit_disk_index RaBitQ/index.cpp)

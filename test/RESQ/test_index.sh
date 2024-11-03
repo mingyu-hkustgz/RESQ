@@ -21,6 +21,8 @@ for data in "${datasets[@]}"; do
     B=512
   elif [ $data == "msmarc-small" ]; then
     B=512
+  elif [ $data == "yt1m" ]; then
+    B=512
   fi
 
   log_file="./results/time-log/${data}/ResQ-PCA-Train-time.log"

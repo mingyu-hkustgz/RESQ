@@ -4,7 +4,7 @@ project(DeepBit)
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(include)
-
+include_directories(include/hnswlib)
 find_package(OpenMP)
 
 if (OPENMP_FOUND)
@@ -14,5 +14,5 @@ else()
     message(FATAL_ERROR "no OpenMP supprot")
 endif()
 
-add_definitions(-std=c++17 -Ofast -march=core-avx2)
+add_definitions(-std=c++17 -Ofast -march=core-avx2 -mavx512f -fpic -fopenmp -ftree-vectorize -fexceptions)
 add_subdirectory(src)

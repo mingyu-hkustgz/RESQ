@@ -32,6 +32,9 @@ for data in "${datasets[@]}"; do
     elif [ $data == "msmarc-small" ]; then
       B=512
       P=30
+    elif [ $data == "yt1m" ]; then
+      B=512
+      P=30
     fi
     res="${result_path}/recall@${K}/${data}/"
     ./cmake-build-debug/src/res_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}

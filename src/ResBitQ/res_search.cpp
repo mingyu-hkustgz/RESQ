@@ -255,5 +255,13 @@ int main(int argc, char *argv[]) {
         var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
+    if (str_data == "yt1m") {
+        const uint32_t BB = 512, DIM = 1024;
+        IVFRES<DIM, BB> ivf;
+        ivf.load(index_path);
+        probe_base = 30;
+        var_count = 10;
+        test(PCAQ, RandQ, G, ivf, subk);
+    }
     return 0;
 }

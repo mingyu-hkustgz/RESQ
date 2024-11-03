@@ -258,6 +258,13 @@ int main(int argc, char *argv[]) {
         var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
+    if (str_data == "yt1m") {
+        const uint32_t BB = 512, DIM = 1024;
+        IVFRES<DIM, BB> ivf;
+        ivf.load(index_path);
+        var_count = 10;
+        test(PCAQ, RandQ, G, ivf, subk);
+    }
     char mem_peak_file[256] = "";
     sprintf(mem_peak_file, "./results/space-log/%s/%s-mem-res-peak.log", dataset, dataset);
     std::ofstream fout(mem_peak_file);
