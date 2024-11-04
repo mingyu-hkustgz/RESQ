@@ -1,6 +1,6 @@
 #define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
-//#define COUNT_SCAN
+#define COUNT_SCAN
 
 #include <iostream>
 #include <fstream>
@@ -68,15 +68,15 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
     float recall = 1.0f * correct / (Q.n * k);
 
 //        cout << "------------------------------------------------" << endl;
-#ifdef COUNT_SCAN
-    cout << "Count Full Scan " << count_scan << endl;
-    cout << "All Distance Count " << all_dist_count << endl;
-    cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
-#endif
+//#ifdef COUNT_SCAN
+//    cout << "Count Full Scan " << count_scan << endl;
+//    cout << "All Distance Count " << all_dist_count << endl;
+//    cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
+//#endif
 //        cout << "nprobe = " << nprobe << " k = " << k <<" Query Bits "<< B_QUERY << endl;
 //        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
 //        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
-    cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
+    cout << recall * 100.0 << " " << 1e6 / (time_us_per_query)<<" "<<count_scan<<" "<<all_dist_count<<" Ratio:: " << (double) count_scan / all_dist_count<<" "<<getPeakRSS() << " " << endl;
 }
 
 int main(int argc, char *argv[]) {

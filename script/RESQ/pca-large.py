@@ -11,6 +11,25 @@ from sklearn.decomposition import PCA
 
 source = './DATA'
 
+# 113519750 1024
+def proj_to_fvecs(filename, data, P, mean):
+    print(f"Writing File - {filename}")
+    N, D = data.shape
+    with open(filename, 'wb') as fp:
+        iter_count = int(N / 1000000) + 1
+        pre = 0
+        for i in range(iter_count):
+            data_seg = data[pre:pre + 1000000]
+            print(f"current count ::{pre}")
+            data_seg = np.dot(data_seg, P)
+            data_seg -= mean
+            for y in tqdm(data_seg):
+                d = struct.pack('I', len(y))
+                fp.write(d)
+                a = struct.pack('f' * D, *y)
+                fp.write(a)
+            pre += 1000000
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='random projection')
@@ -45,6 +64,7 @@ if __name__ == "__main__":
 
     fvecs_write(matrix_save_path, projection_matrix)
     fvecs_write(mean_save_path, mean_var)
+    proj_to_fvecs(pca_data_path, X, projection_matrix, mean_)
     end_time = time.time()
 
     print(f"Large PCA Train Time:: {end_time - begin_time}(s)")

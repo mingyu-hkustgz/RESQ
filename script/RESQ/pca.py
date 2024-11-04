@@ -13,8 +13,8 @@ source = './DATA'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='random projection')
-    parser.add_argument('-d', '--dataset', help='dataset', default='OpenAI-1536')
-    parser.add_argument('-b', '--bit', help='quantized bits', default=512)
+    parser.add_argument('-d', '--dataset', help='dataset', default='msmarc')
+    parser.add_argument('-b', '--bit', help='quantized bits', default=256)
     args = vars(parser.parse_args())
     dataset = args['dataset']
     bits = int(args['bit'])
