@@ -10,8 +10,10 @@ for K in {20,100}; do
       efSearch=20
     elif [ $data == "OpenAI-3072" ]; then
       efSearch=50
-    elif [ $data == "glove2.2m" ]; then
-      efSearch=50
+    elif [ $data == "tiny5m" ]; then
+      efSearch=500
+    elif [ $data == "word2vec" ]; then
+      efSearch=500
     elif [ $data == "gist" ]; then
       efSearch=100
     elif [ $data == "deep1M" ]; then
@@ -26,8 +28,8 @@ for K in {20,100}; do
     result_path="./results/recall@${K}/${data}"
     query="${data_path}/${data}_query.fvecs"
     gnd="${data_path}/${data}_groundtruth.ivecs"
-    ef=500
-    M=16
+    ef=1000
+    M=32
     index="${data_path}/${data}_ef${ef}_M${M}.index"
 
     res="${result_path}/${data}_hnsw_naive.log"

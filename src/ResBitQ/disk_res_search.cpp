@@ -19,6 +19,7 @@ const int MAXK = 100;
 
 long double rotation_time = 0;
 int probe_base = 50;
+int parallel_threads = 1;
 char data_path[256] = "";
 
 template<uint32_t D, uint32_t B>
@@ -31,10 +32,6 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
     // Search Parameter
     // ========================================================================
 
-#if defined(DISK_SCAN)
-    auto read_buffer = new Disk_IO;
-    read_buffer->init_data_file(data_path);
-#endif
     float total_time = 0;
     float total_ratio = 0;
     int correct = 0;
@@ -42,26 +39,29 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
     count_scan = 0;
     all_dist_count = 0;
 #endif
+    omp_set_num_threads(parallel_threads);
+#pragma omp parallel for schedule(dynamic, parallel_threads)
     for (int i = 0; i < Q.n; i++) {
         GetCurTime(&run_start);
-#if defined(DISK_SCAN)
+        auto read_buffer = new Disk_IO;
+        read_buffer->init_data_file(data_path);
         ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, probe_base,
                                      std::numeric_limits<float>::max(), read_buffer);
-#else
-        ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe);
-#endif
+
         GetCurTime(&run_end);
         GetTime(&run_start, &run_end, &usr_t, &sys_t);
-        total_time += usr_t * 1e6;
-
-        int tmp_correct = 0;
-        while (KNNs.empty() == false) {
-            int id = KNNs.top().second;
-            KNNs.pop();
-            for (int j = 0; j < k; j++)
-                if (id == G.data[i * G.d + j])tmp_correct++;
-        }
-        correct += tmp_correct;
+#pragma omp critical
+        {
+            total_time += usr_t * 1e6;
+            int tmp_correct = 0;
+            while (KNNs.empty() == false) {
+                int id = KNNs.top().second;
+                KNNs.pop();
+                for (int j = 0; j < k; j++)
+                    if (id == G.data[i * G.d + j])tmp_correct++;
+            }
+            correct += tmp_correct;
+        };
     }
     float time_us_per_query = total_time / Q.n + rotation_time;
     float recall = 1.0f * correct / (Q.n * k);
@@ -122,6 +122,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'p':
                 if (optarg) probe_base = atoi(optarg);
+                break;
+            case 't':
+                if (optarg) parallel_threads = atoi(optarg);
                 break;
         }
     }

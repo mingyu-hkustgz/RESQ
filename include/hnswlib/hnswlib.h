@@ -195,12 +195,19 @@ class AlgorithmInterface {
     virtual std::vector<std::pair<dist_t, labeltype>>
         searchKnnCloserFirst(const void* query_data, size_t k, BaseFilterFunctor* isIdAllowed = nullptr) const;
 
+    virtual std::priority_queue<std::pair<dist_t, labeltype>>
+        searchKnnRaBit(float*, float *,size_t, BaseFilterFunctor* isIdAllowed = nullptr) const{};
+
+    virtual std::priority_queue<std::pair<dist_t, labeltype>>
+        searchKnnRes(float*, float *,size_t, BaseFilterFunctor* isIdAllowed = nullptr) const{};
+
     virtual void saveIndex(const std::string &location) = 0;
     virtual ~AlgorithmInterface(){
     }
 };
 
-template<typename dist_t>
+
+    template<typename dist_t>
 std::vector<std::pair<dist_t, labeltype>>
 AlgorithmInterface<dist_t>::searchKnnCloserFirst(const void* query_data, size_t k,
                                                  BaseFilterFunctor* isIdAllowed) const {
@@ -226,3 +233,4 @@ AlgorithmInterface<dist_t>::searchKnnCloserFirst(const void* query_data, size_t 
 #include "stop_condition.h"
 #include "bruteforce.h"
 #include "hnswalg.h"
+#include "hnswalg_bit.h"

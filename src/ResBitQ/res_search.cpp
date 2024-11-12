@@ -1,7 +1,7 @@
 #define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
 #define FAST_SCAN
-//#define COUNT_SCAN
+#define COUNT_SCAN
 #include <iostream>
 #include <fstream>
 
@@ -59,11 +59,11 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
         float recall = 1.0f * correct / (Q.n * k);
 
 //        cout << "------------------------------------------------" << endl;
-//#ifdef COUNT_SCAN
-//        cout << "Count Full Scan " << count_scan << endl;
-//        cout << "All Distance Count " << all_dist_count << endl;
-//        cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
-//#endif
+#ifdef COUNT_SCAN
+        cout << "Count Full Scan " << count_scan << endl;
+        cout << "All Distance Count " << all_dist_count << endl;
+        cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
+#endif
 //        cout << "nprobe = " << nprobe << " k = " << k << endl;
 //        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
 //        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
@@ -175,6 +175,7 @@ int main(int argc, char *argv[]) {
     rotation_time = usr_t * 1e6 / Q.n;
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
+#ifndef LARGE_DATA
     if (str_data == "msong") {
         const uint32_t BB = 128, DIM = 420;
         IVFRES<DIM, BB> ivf;
@@ -212,7 +213,7 @@ int main(int argc, char *argv[]) {
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 15;
-        var_count = 4;
+        var_count = 3;
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "sift") {
@@ -263,5 +264,23 @@ int main(int argc, char *argv[]) {
         var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
+#else
+    if (str_data == "msmarc") {
+        const uint32_t BB = 512, DIM = 1024;
+        IVFRES<DIM, BB> ivf;
+        ivf.load(index_path);
+        probe_base = 100;
+        var_count = 10;
+        test(PCAQ, RandQ, G, ivf, subk);
+    }
+    if (str_data == "tiny5m") {
+        const uint32_t BB = 128, DIM = 384;
+        IVFRES<DIM, BB> ivf;
+        ivf.load(index_path);
+        probe_base = 100;
+        var_count = 4;
+        test(PCAQ, RandQ, G, ivf, subk);
+    }
+#endif
     return 0;
 }

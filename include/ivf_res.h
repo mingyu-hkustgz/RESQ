@@ -59,6 +59,10 @@ public:
            const Matrix<float> &_x0, const Matrix<uint32_t> &cluster_id, const Matrix<uint64_t> &binary,
            const Matrix<float> &M);
 
+    IVFRES(char *file_name, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
+           const Matrix<float> &_x0, const Matrix<uint32_t> &cluster_id, const Matrix<uint64_t> &binary,
+           const Matrix<float> &M);
+
     ~IVFRES();
 
     ResultHeap search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
@@ -470,13 +474,13 @@ void IVFRES<D, B>::save(char *filename) {
     output.write((char *) mean_, D * sizeof(float));
 
     output.write((char *) centroid, C * B * sizeof(float));
-    output.write((char *) binary_code, N * B / 64 * sizeof(uint64_t));
+    output.write((char *) binary_code, (size_t) N * B / 64 * sizeof(uint64_t));
 #ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
-    output.write((char *) data, N * B * sizeof(float));
-    output.write((char *) res_data, N * (D - B + 1) * sizeof(float));
+    output.write((char *) data, (size_t) N * B * sizeof(float));
+    output.write((char *) res_data, (size_t) N * (D - B + 1) * sizeof(float));
 #else
-    output.write((char *) data, N * D * sizeof(float));
+    output.write((char *) data, (size_t)N * D * sizeof(float));
 #endif
 #endif
     output.close();
@@ -512,14 +516,14 @@ void IVFRES<D, B>::load(char *filename) {
 
 #ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
-    data = new float[N * B];
-    res_data = new float[N * (D - B + 1)];
+    data = new float[(size_t) N * B];
+    res_data = new float[(size_t) N * (D - B + 1)];
 #else
     data = new float[N * D];
 #endif
 #endif
 
-    binary_code = static_cast<uint64_t *>(aligned_alloc(256, N * B / 64 * sizeof(uint64_t)));
+    binary_code = static_cast<uint64_t *>(aligned_alloc(256, (size_t) N * B / 64 * sizeof(uint64_t)));
 
     start = new uint32_t[C];
     len = new uint32_t[C];
@@ -541,19 +545,19 @@ void IVFRES<D, B>::load(char *filename) {
     input.read((char *) mean_, D * sizeof(float));
 
     input.read((char *) centroid, C * B * sizeof(float));
-    input.read((char *) binary_code, N * B / 64 * sizeof(uint64_t));
+    input.read((char *) binary_code, (size_t) N * B / 64 * sizeof(uint64_t));
 
 #ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
-    input.read((char *) data, N * B * sizeof(float));
-    input.read((char *) res_data, N * (D - B + 1) * sizeof(float));
+    input.read((char *) data, (size_t) N * B * sizeof(float));
+    input.read((char *) res_data, (size_t) N * (D - B + 1) * sizeof(float));
 #else
-    input.read((char *) data, N * D * sizeof(float));
+    input.read((char *) data, (size_t)N * D * sizeof(float));
 #endif
 #endif
 
     packed_start = new uint32_t[C];
-    int cur = 0;
+    size_t cur = 0;
     for (int i = 0; i < C; i++) {
         packed_start[i] = cur;
         cur += (len[i] + 31) / 32 * 32 * B / 8;
@@ -646,8 +650,8 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
     centroid = new float[C * B];
 #ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
-    data = new float[N * B];
-    res_data = new float[N * RD];
+    data = new float[(uint64_t) N * B];
+    res_data = new float[(uint64_t) N * RD];
 #else
     data = new float[N * D];
 #endif
@@ -677,6 +681,86 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
     }
     std::cerr << "load finished" << std::endl;
 }
+
+template<uint32_t D, uint32_t B>
+IVFRES<D, B>::IVFRES(char *base_file, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
+                     const Matrix<float> &_x0, const Matrix<uint32_t> &cluster_id, const Matrix<uint64_t> &binary,
+                     const Matrix<float> &M) {
+    fac = NULL;
+    u = NULL;
+    ifstream in(base_file, std::ios::binary);
+    in.seekg(0, std::ios::end);
+    std::ios::pos_type ss = in.tellg();
+    size_t fsize = (size_t) ss;
+    N = (unsigned) (fsize / (D + 1) / 4);
+    C = _centroids.n;
+    RD = D - B + 1;
+    // check uint64_t
+    assert(B % 64 == 0);
+
+    start = new uint32_t[C];
+    len = new uint32_t[C];
+    id = new uint32_t[N];
+    dist_to_c = new float[N];
+    x0 = new float[N];
+
+    uniform_prune_parameter_config(M);
+
+    memset(len, 0, C * sizeof(uint32_t));
+    for (int i = 0; i < N; i++)len[cluster_id.data[i]]++;
+    int sum = 0;
+    for (int i = 0; i < C; i++) {
+        start[i] = sum;
+        sum += len[i];
+    }
+    std::vector<uint32_t> temp_pos(N);
+    for (int i = 0; i < N; i++) {
+        id[start[cluster_id.data[i]]] = i;
+        dist_to_c[start[cluster_id.data[i]]] = dist_to_centroid.data[i];
+        x0[start[cluster_id.data[i]]] = _x0.data[i];
+        start[cluster_id.data[i]]++;
+    }
+    for (int i = 0; i < N; i++) {
+        temp_pos[id[i]] = i;
+    }
+    for (int i = 0; i < C; i++) {
+        start[i] -= len[i];
+    }
+
+    centroid = new float[C * B];
+#ifndef DISK_SCANW
+#ifdef RESIDUAL_SPLIT
+    data = new float[(size_t) N * B];
+    res_data = new float[(size_t) N * RD];
+#else
+    data = new float[N * D];
+#endif
+#endif
+    binary_code = new uint64_t[(size_t) N * B / 64];
+
+    std::memcpy(centroid, _centroids.data, C * B * sizeof(float));
+    float read_buffer[D];
+    in.seekg(0, std::ios::beg);
+    for (size_t x = 0; x < N; x++) {
+        if (x % 1000000 == 0) {
+            std::cerr << "Current process:: " << x << std::endl;
+        }
+        in.seekg(4, std::ios::cur);
+        in.read((char *) (read_buffer), D * sizeof(float));
+        size_t pos = temp_pos[x];
+#ifdef RESIDUAL_SPLIT
+        data[pos * B] = ip_sim<D>(read_buffer, read_buffer);
+
+        std::memcpy(data + pos * B + 1, read_buffer, (B - 1) * sizeof(float));
+        std::memcpy(res_data + pos * (D - B + 1), read_buffer + (B - 1), (D - B + 1) * sizeof(float));
+#else
+        std::memcpy(data + pos * D, read_buffer, D * sizeof(float));
+#endif
+        std::memcpy(binary_code + pos * (B / 64), binary.data + x * (B / 64), (B / 64) * sizeof(uint64_t));
+    }
+    std::cerr << "load finished" << std::endl;
+}
+
 
 template<uint32_t D, uint32_t B>
 IVFRES<D, B>::~IVFRES() {

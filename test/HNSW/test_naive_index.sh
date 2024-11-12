@@ -1,7 +1,7 @@
 source set.sh
 
-efConstruction=500
-M=16
+efConstruction=1000
+M=32
 
 for data in "${datasets[@]}"; do
   echo "Indexing - ${data}"

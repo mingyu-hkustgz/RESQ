@@ -70,7 +70,7 @@ int main(int argc, char * argv[]) {
     HierarchicalNSW<float>* appr_alg = new HierarchicalNSW<float> (&l2space, N, M, efConstruction);
     appr_alg->addPoint(X->data , 0);
     unsigned check_tag = 1;
-#pragma omp parallel for schedule(dynamic, 80)
+#pragma omp parallel for schedule(dynamic, 144)
     for(int i=1;i<N;i++){
         appr_alg->addPoint(X->data + i * D, i);
 #pragma omp critical
