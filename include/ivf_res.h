@@ -13,6 +13,8 @@
 #include "utils.h"
 #include "space.h"
 #include "fast_scan.h"
+#include "aligned_file_reader.h"
+#include "linux_aligned_file_reader.h"
 
 template<uint32_t D, uint32_t B>
 class IVFRES {

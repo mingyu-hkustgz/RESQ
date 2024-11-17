@@ -17,6 +17,7 @@ __pycache__
 *.bin
 *.png
 *.html
+*.uuid
 *.pdf
 *.pt
 *.log

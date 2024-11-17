@@ -24,8 +24,7 @@ for data in "${datasets[@]}"; do
       B=256
     fi
     res="${result_path}/recall@${K}/${data}/"
-    ./cmake-build-debug/src/res_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
-    ./cmake-build-debug/src/res_split_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
-    ./cmake-build-debug/src/res_disk_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
+    ./cmake-build-debug/src/res_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} -t 1
+    ./cmake-build-debug/src/res_split_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} -t 1
   done
 done

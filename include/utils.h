@@ -18,9 +18,29 @@
 #include<sys/resource.h>
 
 #endif
+#define IS_ALIGNED(X, Y) ((uint64_t)(X) % (uint64_t)(Y) == 0)
+#define IS_512_ALIGNED(X) IS_ALIGNED(X, 512)
 
 typedef std::pair<float, uint32_t> Result;
 typedef std::priority_queue<Result> ResultHeap;
+
+struct DiskResult {
+    float tmp_dist, low_dist;
+    uint32_t id;
+
+    DiskResult(float dist, float low, uint32_t node_id) {
+        tmp_dist = dist;
+        low_dist = low;
+        id = node_id;
+    }
+
+
+    bool operator<(const DiskResult &nxt) const {
+        return this->tmp_dist < nxt.tmp_dist;
+    }
+};
+
+typedef std::priority_queue<DiskResult> DiskResultHeap;
 
 namespace Detail {
     double constexpr sqrtNewtonRaphson(double x, double curr, double prev) {
@@ -257,6 +277,69 @@ size_t getCurrentRSS() {
 #else
     /* AIX, BSD, Solaris, and Unknown OS ------------------------ */
     return (size_t)0L;          /* Unsupported. */
+#endif
+}
+
+
+inline void print_error_and_terminate(std::stringstream &error_stream) {
+    std::cerr << error_stream.str() << std::endl;
+}
+
+inline void report_misalignment_of_requested_size(size_t align) {
+    std::stringstream stream;
+    stream << "Requested memory size is not a multiple of " << align << ". Can not be allocated.";
+    print_error_and_terminate(stream);
+}
+
+inline void report_memory_allocation_failure() {
+    std::stringstream stream;
+    stream << "Memory Allocation Failed.";
+    print_error_and_terminate(stream);
+}
+
+inline void alloc_aligned(void **ptr, size_t size, size_t align) {
+    *ptr = nullptr;
+    if (IS_ALIGNED(size, align) == 0)
+        report_misalignment_of_requested_size(align);
+#ifndef _WINDOWS
+    *ptr = ::aligned_alloc(align, size);
+#else
+    *ptr = ::_aligned_malloc(size, align); // note the swapped arguments!
+#endif
+    if (*ptr == nullptr)
+        report_memory_allocation_failure();
+}
+
+inline void realloc_aligned(void **ptr, size_t size, size_t align) {
+    if (IS_ALIGNED(size, align) == 0)
+        report_misalignment_of_requested_size(align);
+#ifdef _WINDOWS
+    *ptr = ::_aligned_realloc(*ptr, size, align);
+#else
+    std::cerr << "No aligned realloc on GCC. Must malloc and mem_align, "
+                 "left it out for now."
+              << std::endl;
+#endif
+    if (*ptr == nullptr)
+        report_memory_allocation_failure();
+}
+
+inline void check_stop(std::string arnd) {
+    int brnd;
+    std::cout << arnd << std::endl;
+    std::cin >> brnd;
+}
+
+inline void aligned_free(void *ptr) {
+    // Gopal. Must have a check here if the pointer was actually allocated by
+    // _alloc_aligned
+    if (ptr == nullptr) {
+        return;
+    }
+#ifndef _WINDOWS
+    free(ptr);
+#else
+    ::_aligned_free(ptr);
 #endif
 }
 

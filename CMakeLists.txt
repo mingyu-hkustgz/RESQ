@@ -14,5 +14,9 @@ else()
     message(FATAL_ERROR "no OpenMP supprot")
 endif()
 
-add_definitions(-std=c++17 -Ofast -march=core-avx2)
+if (NOT MSVC)
+    set(DISKANN_ASYNC_LIB aio)
+endif()
+
+add_definitions(-std=c++17 -Ofast -march=core-avx2 -fopenmp)
 add_subdirectory(src)

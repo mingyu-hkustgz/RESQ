@@ -1,4 +1,3 @@
-#define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
 //#define COUNT_SCAN
 
@@ -19,70 +18,41 @@ const int MAXK = 100;
 
 long double rotation_time = 0;
 int probe_base = 50;
+int parallel_thread = 1;
 char data_path[256] = "";
 
 template<uint32_t D, uint32_t B>
 void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsigned> &G,
           const IVFRN<D, B> &ivf, int k) {
-    float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
-    struct rusage run_start, run_end;
-
     // ========================================================================
     // Search Parameter
-
     // ========================================================================
 
-#if defined(DISK_SCAN)
-    auto read_buffer = new Disk_IO;
-    read_buffer->init_data_file(data_path);
-#endif
-
     for (int nprobe = probe_base; nprobe <= probe_base * 20; nprobe += probe_base) {
-        float total_time = 0;
-        float total_ratio = 0;
         int correct = 0;
-#ifdef COUNT_SCAN
-        count_scan = 0;
-        all_dist_count = 0;
-#endif
+        auto start = std::chrono::high_resolution_clock::now();
+#pragma omp parallel for schedule(dynamic, parallel_thread)
         for (int i = 0; i < Q.n; i++) {
-            GetCurTime(&run_start);
-#if defined(DISK_SCAN)
-            ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe,
-                                         std::numeric_limits<float>::max(), read_buffer);
-#else
             ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe);
-#endif
-            GetCurTime(&run_end);
-            GetTime(&run_start, &run_end, &usr_t, &sys_t);
-            total_time += usr_t * 1e6;
-
-            int tmp_correct = 0;
-            while (KNNs.empty() == false) {
-                int id = KNNs.top().second;
-                KNNs.pop();
-                for (int j = 0; j < k; j++)
-                    if (id == G.data[i * G.d + j])tmp_correct++;
+#pragma omp critical
+            {
+                int tmp_correct = 0;
+                while (KNNs.empty() == false) {
+                    int id = KNNs.top().second;
+                    KNNs.pop();
+                    for (int j = 0; j < k; j++)
+                        if (id == G.data[i * G.d + j])tmp_correct++;
+                }
+                correct += tmp_correct;
             }
-            correct += tmp_correct;
         }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> duration = end - start;
+        float total_time = duration.count() * 1e6;
         float time_us_per_query = total_time / Q.n + rotation_time;
         float recall = 1.0f * correct / (Q.n * k);
-
-//        cout << "------------------------------------------------" << endl;
-#ifdef COUNT_SCAN
-        cout << "Count Full Scan " << count_scan << endl;
-        cout << "All Distance Count " << all_dist_count << endl;
-        cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
-#endif
-//        cout << "nprobe = " << nprobe << " k = " << k <<" Query Bits "<< B_QUERY << endl;
-//        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
-//        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
         cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
     }
-#if defined(DISK_SCAN)
-    cout << "MEM Peak:: " << getPeakRSS() << endl;
-#endif
 }
 
 int main(int argc, char *argv[]) {
@@ -110,7 +80,7 @@ int main(int argc, char *argv[]) {
     int subk = 0;
 
     while (iarg != -1) {
-        iarg = getopt_long(argc, argv, "d:r:k:s:b:", longopts, &ind);
+        iarg = getopt_long(argc, argv, "d:r:k:s:b:t:", longopts, &ind);
         switch (iarg) {
             case 'k':
                 if (optarg)subk = atoi(optarg);
@@ -126,6 +96,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'b':
                 if (optarg) bit = atoi(optarg);
+                break;
+            case 't':
+                if (optarg) parallel_thread = atoi(optarg);
                 break;
         }
     }
@@ -149,21 +122,18 @@ int main(int argc, char *argv[]) {
     sprintf(index_path, "%sivfrabitq%d_B%d.index", source, numC, bit);
     std::cerr << index_path << std::endl;
 
-#if  defined(DISK_SCAN)
     char result_file_view[256] = "";
-    sprintf(result_file_view, "%s%s_ivf_disk_scan.log", result_path, dataset, numC, bit);
-#elif defined(FAST_SCAN)
-    char result_file_view[256] = "";
+#if defined(FAST_SCAN)
     sprintf(result_file_view, "%s%s_ivf_fast_scan.log", result_path, dataset, numC, bit);
 #elif defined(SCAN)
-    char result_file_view[256] = "";
     sprintf(result_file_view, "%s%s_ivfrabitq_scan.log", result_path, dataset, numC, bit);
 #endif
     std::cerr << result_file_view << std::endl;
     std::cerr << "Loading Succeed!" << std::endl;
     // ================================================================================================================================
 
-
+    omp_set_num_threads(parallel_thread);
+    std::cerr << "number of threads: " << parallel_thread << std::endl;
     freopen(result_file_view, "a", stdout);
     float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
     struct rusage run_start, run_end;
