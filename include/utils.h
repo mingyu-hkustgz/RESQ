@@ -25,12 +25,12 @@ typedef std::pair<float, uint32_t> Result;
 typedef std::priority_queue<Result> ResultHeap;
 
 struct DiskResult {
-    float tmp_dist, low_dist;
+    float tmp_dist, dist_error;
     uint32_t id;
 
-    DiskResult(float dist, float low, uint32_t node_id) {
+    DiskResult(float dist, float error, uint32_t node_id) {
         tmp_dist = dist;
-        low_dist = low;
+        dist_error = error;
         id = node_id;
     }
 

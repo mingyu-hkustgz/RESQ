@@ -18,25 +18,28 @@ const int MAXK = 100;
 
 long double rotation_time = 0;
 int probe_base = 50;
-int rerank_range = 50;
+int rerank_range = 500;
 int parallel_thread = 1;
 char data_path[256] = "";
 
 template<uint32_t D, uint32_t B>
 void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsigned> &G,
-          const IVFRN<D, B> &ivf, int k) {
+          IVFRN<D, B> &ivf, int k) {
     // ========================================================================
     // Search Parameter
     // ========================================================================
-
+    ivf.reader = new LinuxAlignedFileReader();
+    ivf.reader->open(data_path);
+    ivf.reader->register_thread();
     for (int nprobe = probe_base; nprobe <= probe_base * 20; nprobe += probe_base) {
         int correct = 0;
+        disk_ios = 0;
         auto start = std::chrono::high_resolution_clock::now();
-#pragma omp parallel for schedule(dynamic, parallel_thread)
+//#pragma omp parallel for schedule(dynamic, parallel_thread)
         for (int i = 0; i < Q.n; i++) {
-            ResultHeap KNNs = ivf.disk_search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, rerank_range, nprobe, data_path);
-#pragma omp critical
-            {
+            ResultHeap KNNs = ivf.disk_search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, rerank_range, nprobe);
+//#pragma omp critical
+//            {
                 int tmp_correct = 0;
                 while (KNNs.empty() == false) {
                     int id = KNNs.top().second;
@@ -45,15 +48,17 @@ void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsig
                         if (id == G.data[i * G.d + j])tmp_correct++;
                 }
                 correct += tmp_correct;
-            }
+//            }
         }
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> duration = end - start;
         float total_time = duration.count() * 1e6;
         float time_us_per_query = total_time / Q.n + rotation_time;
         float recall = 1.0f * correct / (Q.n * k);
-        cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
+        cout << recall * 100.0 << " " << 1e6 / (time_us_per_query)<<" "<<disk_ios/Q.n<<" "<<disk_ios<< endl;
     }
+
+    cout<<"MEM PEAK::"<<getPeakRSS()/1024/1024<<"(MB)"<<std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -109,7 +114,7 @@ int main(int argc, char *argv[]) {
     sprintf(query_path, "%s%s_query.fvecs", source, dataset);
     Matrix<float> Q(query_path);
 
-    sprintf(data_path, "%s%s_base.fvecs", source, dataset);
+    sprintf(data_path, "%s%s_base.aligned", source, dataset);
 
     char groundtruth_path[256] = "";
     sprintf(groundtruth_path, "%s%s_groundtruth.ivecs", source, dataset);
@@ -124,10 +129,10 @@ int main(int argc, char *argv[]) {
     std::cerr << index_path << std::endl;
 
     char result_file_view[256] = "";
-#if defined(FAST_SCAN)
-    sprintf(result_file_view, "%s%s_ivf_fast_scan.log", result_path, dataset, numC, bit);
-#elif defined(SCAN)
-    sprintf(result_file_view, "%s%s_ivfrabitq_scan.log", result_path, dataset, numC, bit);
+#if defined(RERANK)
+    sprintf(result_file_view, "%s%s_ivf_disk_scan.log", result_path, dataset, numC, bit);
+#else
+    sprintf(result_file_view, "%s%s_ivf_disk_prune_scan.log", result_path, dataset, numC, bit);
 #endif
     std::cerr << result_file_view << std::endl;
     std::cerr << "Loading Succeed!" << std::endl;

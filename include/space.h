@@ -21,7 +21,7 @@
 #include <random>
 
 const uint32_t B_QUERY = 4, numC = 4096;
-unsigned count_scan = 0, all_dist_count = 0;
+unsigned count_scan = 0, all_dist_count = 0, disk_ios = 0;
 float var_count = 5.0;
 
 template<uint32_t D, uint32_t B>

@@ -60,7 +60,7 @@ public:
     float *x0;                       // N of floats in the Random Net algorithm
     float *centroid;                 // N * B floats (not N * D), note that the centroids should be randomized
     float *data;                     // N * D floats, note that the datas are not randomized
-
+    LinuxAlignedFileReader *reader;   // Linux File Reader
     IVFRN();
 
     IVFRN(const Matrix<float> &X, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
@@ -71,8 +71,7 @@ public:
     ResultHeap search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
                       float distK = std::numeric_limits<float>::max()) const;
 
-    ResultHeap
-    disk_search(float *query, float *rd_query, uint32_t k, uint32_t range, uint32_t nprobe, const char *filename) const;
+    ResultHeap disk_search(float *query, float *rd_query, uint32_t k, uint32_t range, uint32_t nprobe) const;
 
     static void scan(ResultHeap &KNNs, float &distK, uint32_t k, \
                         uint64_t *quant_query, uint64_t *ptr_binary_code, uint32_t len, Factor *ptr_fac, \
@@ -289,7 +288,7 @@ void IVFRN<D, B>::disk_scan(DiskResultHeap &KNNs, uint32_t k, \
             float tmp_dist = (ptr_fac->sqr_x) + sqr_y + ptr_fac->factor_ppc * vl +
                              (result[i] - sumq) * (ptr_fac->factor_ip) * width;
             float error_bound = y * (ptr_fac->error);
-            KNNs.emplace(tmp_dist, tmp_dist - error_bound, *id);
+            KNNs.emplace(tmp_dist, error_bound, *id);
             if (KNNs.size() > k) KNNs.pop();
             ptr_fac++;
             id++;
@@ -307,7 +306,7 @@ void IVFRN<D, B>::disk_scan(DiskResultHeap &KNNs, uint32_t k, \
             float tmp_dist = (ptr_fac->sqr_x) + sqr_y + ptr_fac->factor_ppc * vl +
                              (result[i] - sumq) * ptr_fac->factor_ip * width;
             float error_bound = y * (ptr_fac->error);
-            KNNs.emplace(tmp_dist, tmp_dist - error_bound, *id);
+            KNNs.emplace(tmp_dist, error_bound, *id);
             if (KNNs.size() > k) KNNs.pop();
             ptr_fac++;
             id++;
@@ -370,7 +369,7 @@ ResultHeap IVFRN<D, B>::search(float *query, float *rd_query, uint32_t k, uint32
 #elif defined(FAST_SCAN)
         fast_scan(KNNs, distK, k, \
                 LUT, packed_code + packed_start[c], len[c], fac + start[c], \
-                sqr_y, vl, width, sum_q,\
+                sqr_y, vl, width, sum_q, \
                 query, data + start[c] * D, id + start[c]);
 #endif
     }
@@ -380,13 +379,10 @@ ResultHeap IVFRN<D, B>::search(float *query, float *rd_query, uint32_t k, uint32
 
 // disk search impl
 template<uint32_t D, uint32_t B>
-ResultHeap IVFRN<D, B>::disk_search(float *query, float *rd_query, uint32_t k, uint32_t range, uint32_t nprobe,
-                                    const char *file_name) const {
+ResultHeap IVFRN<D, B>::disk_search(float *query, float *rd_query, uint32_t k, uint32_t range, uint32_t nprobe) const {
     // The default value of distK is +inf
-    LinuxAlignedFileReader reader;
-    reader.open(file_name);
-    reader.register_thread();
-    IOContext ctx = reader.get_ctx();
+//    reader->open(file_name);
+    IOContext ctx = reader->get_ctx();
     std::vector<AlignedRead> read_reqs;
     char *buf = nullptr;
     DiskResultHeap KNNs;
@@ -421,7 +417,7 @@ ResultHeap IVFRN<D, B>::disk_search(float *query, float *rd_query, uint32_t k, u
         space.quantize(byte_query, rd_query, centroid + c * B, u, vl, width, sum_q);
         uint8_t PORTABLE_ALIGN32 LUT[B / 4 * 16];
         pack_LUT<B>(byte_query, LUT);
-        disk_scan(KNNs, k, \
+        disk_scan(KNNs, range, \
                 LUT, packed_code + packed_start[c], len[c], fac + start[c], \
                 sqr_y, vl, width, sum_q, id + start[c]);
     }
@@ -432,6 +428,7 @@ ResultHeap IVFRN<D, B>::disk_search(float *query, float *rd_query, uint32_t k, u
         KNNs.pop();
     }
     sort(rerank_list.begin(), rerank_list.end());
+#ifdef RERANK
     unsigned Round_Up = (D * 4) % 512 == 0 ? D * 4 : ((D * 4) / 512 + 1) * 512;
     alloc_aligned((void **) &buf, Round_Up * range, ALIGN_LEN);
     float distK = MAXFLOAT;
@@ -439,7 +436,8 @@ ResultHeap IVFRN<D, B>::disk_search(float *query, float *rd_query, uint32_t k, u
         unsigned probe = rerank_list[i].id;
         read_reqs.emplace_back(probe * Round_Up, Round_Up, buf + i * Round_Up);
     }
-    reader.read(read_reqs, ctx);
+    disk_ios += range;
+    reader->read(read_reqs, ctx);
     for (size_t i = 0; i < range; ++i) {
         unsigned probe = rerank_list[i].id;
         auto *begin = (float *) (buf + i * Round_Up);
@@ -448,6 +446,28 @@ ResultHeap IVFRN<D, B>::disk_search(float *query, float *rd_query, uint32_t k, u
         if (Final_KNNs.size() > k) Final_KNNs.pop();
     }
     free(buf);
+#else
+    unsigned Round_Up = (D * 4) % 512 == 0 ? D * 4 : ((D * 4) / 512 + 1) * 512;
+    alloc_aligned((void **) &buf, Round_Up * range, ALIGN_LEN);
+    std::vector<uint32_t> rerank_id;
+    for (size_t i = 0; i < range; ++i) {
+        uint32_t probe = rerank_list[i].id;
+        if(rerank_list[i].tmp_dist - rerank_list[i].dist_error < rerank_list[k].tmp_dist + rerank_list[i].dist_error){
+            rerank_id.push_back(probe);
+            read_reqs.emplace_back(probe * Round_Up, Round_Up, buf + i * Round_Up);
+        }
+    }
+    disk_ios += read_reqs.size();
+    reader->read(read_reqs, ctx);
+    for (uint32_t i = 0; i < rerank_id.size(); i++) {
+        uint32_t probe = rerank_id[i];
+        auto *begin = (float *) (buf + i * Round_Up);
+        float cur_dist = sqr_dist<D>(query, begin);
+        Final_KNNs.emplace(cur_dist, probe);
+        if (Final_KNNs.size() > k) Final_KNNs.pop();
+    }
+    free(buf);
+#endif
     return Final_KNNs;
 }
 
@@ -532,14 +552,14 @@ void IVFRN<D, B>::load(char *filename) {
     input.read((char *) data, N * D * sizeof(float));
 #endif
 #if defined(FAST_SCAN)
-    packed_start = new uint32_t [C];
+    packed_start = new uint32_t[C];
     int cur = 0;
-    for(int i=0;i<C;i++){
+    for (int i = 0; i < C; i++) {
         packed_start[i] = cur;
         cur += (len[i] + 31) / 32 * 32 * B / 8;
     }
-    packed_code = static_cast<uint8_t*>(aligned_alloc(32, cur * sizeof(uint8_t)));
-    for(int i=0;i<C;i++){
+    packed_code = static_cast<uint8_t *>(aligned_alloc(32, cur * sizeof(uint8_t)));
+    for (int i = 0; i < C; i++) {
         pack_codes<B>(binary_code + start[i] * (B / 64), len[i], packed_code + packed_start[i]);
     }
 #else

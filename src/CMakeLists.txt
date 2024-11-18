@@ -11,8 +11,12 @@ add_executable(rabit_scan_search RaBitQ/search.cpp)
 target_compile_definitions(rabit_scan_search PRIVATE SCAN)
 
 add_executable(rabit_disk_scan_search RaBitQ/disk_search.cpp)
-target_compile_definitions(rabit_disk_scan_search PRIVATE FAST_SCAN)
+target_compile_definitions(rabit_disk_scan_search PRIVATE FAST_SCAN DISK_SCAN RERANK)
 target_link_libraries(rabit_disk_scan_search ${DISKANN_ASYNC_LIB})
+
+add_executable(rabit_disk_prune_search RaBitQ/disk_search.cpp)
+target_compile_definitions(rabit_disk_prune_search PRIVATE FAST_SCAN DISK_SCAN)
+target_link_libraries(rabit_disk_prune_search ${DISKANN_ASYNC_LIB})
 
 add_executable(res_index ResBitQ/res_index.cpp)
 add_executable(res_split_index ResBitQ/res_index.cpp)
