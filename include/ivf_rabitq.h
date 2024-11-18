@@ -389,11 +389,6 @@ ResultHeap IVFRN<D, B>::search(float* query, float* rd_query, uint32_t k, uint32
                 quant_query, binary_code + start[c] * (B / 64), len[c], fac + start[c], \
                 sqr_y, vl, width, sum_q,\
                 query, data + start[c] * D, id + start[c]);
-#elif defined(DISK_SCAN)
-        disk_scan(KNNs, distK, k, \
-                LUT, packed_code + packed_start[c], len[c], fac + start[c], \
-                sqr_y, vl, width, sum_q,\
-                query, data + start[c] * D, id + start[c], read_buffer);
 #elif defined(FAST_SCAN)
         fast_scan(KNNs, distK, k, \
                 LUT, packed_code + packed_start[c], len[c], fac + start[c], \

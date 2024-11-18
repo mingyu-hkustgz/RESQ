@@ -429,23 +429,16 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
 
         uint8_t PORTABLE_ALIGN32 LUT[B / 4 * 16];
         pack_LUT<B>(byte_query, LUT);
-#ifdef DISK_SCAN
-        disk_scan(KNNs, distK, k, \
-                LUT, packed_code + packed_start[c], len[c], fac + start[c], \
-                sqr_y, res_sqr_y, res_error, vl, width, sum_q, \
-                query, data + start[c] * D, id + start[c], read_buffer);
-#else
 #ifdef RESIDUAL_SPLIT
         res_scan(KNNs, distK, k,
-                 LUT, packed_code + packed_start[c], len[c], fac + start[c],
+                 LUT, packed_code + (size_t)packed_start[c], len[c], fac + (size_t)start[c],
                  sqr_y, res_sqr_y, res_error, p_res_error, vl, all_sqr_y, width, sum_q,
-                 query, data + start[c] * B, res_data + start[c] * (D - B + 1), id + start[c]);
+                 query, data + (size_t)start[c] * B, res_data + (size_t)start[c] * (D - B + 1), id + (size_t)start[c]);
 #else
         fast_scan(KNNs, distK, k, \
-                LUT, packed_code + packed_start[c], len[c], fac + start[c], \
+                LUT, packed_code + (size_t)packed_start[c], len[c], fac + (size_t)start[c], \
                 sqr_y, res_sqr_y, res_error, vl, width, sum_q, \
-                query, data + start[c] * D, id + start[c]);
-#endif
+                query, data + (size_t)start[c] * D, id + (size_t)start[c]);
 #endif
     }
     return KNNs;
