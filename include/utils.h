@@ -12,7 +12,7 @@
 #include <unordered_set>
 #include <limits>
 #include "matrix.h"
-
+#include <filesystem>
 #ifndef WIN32
 
 #include<sys/resource.h>
@@ -39,6 +39,10 @@ struct DiskResult {
         return this->tmp_dist < nxt.tmp_dist;
     }
 };
+
+bool fileExists(const std::string& filename) {
+    return std::filesystem::exists(filename);
+}
 
 typedef std::priority_queue<DiskResult> DiskResultHeap;
 

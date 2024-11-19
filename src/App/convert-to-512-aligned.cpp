@@ -54,8 +54,12 @@ int main(int argc, char *argv[]) {
     char save_path[256] = "";
 
     sprintf(data_path, "%s%s_base.fvecs", source, dataset);
-    Matrix<float> X(data_path);
     sprintf(save_path, "%s%s_base.aligned", source, dataset);
+    if(fileExists(save_path)){
+        std::cerr<<"Aligned File Already Exist"<<std::endl;
+        return 0;
+    }
+    Matrix<float> X(data_path);
     unsigned N = X.n, D = X.d;
     unsigned Round_Up = (D * 4) % 512 == 0 ? D * 4 : ((D * 4) / 512 + 1) * 512;
     char *buffer[Round_Up];

@@ -18,7 +18,7 @@ const int MAXK = 100;
 
 long double rotation_time = 0;
 int probe_base = 50;
-int rerank_range = 500;
+int rerank_range = 200;
 int parallel_thread = 1;
 char data_path[256] = "";
 
