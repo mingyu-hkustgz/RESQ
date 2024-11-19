@@ -54,7 +54,7 @@ public:
     float *centroid;                 // N * B floats (not N * D), note that the centroids should be randomized
     float *data;                     // N * D floats, note that the datas are not randomized
     float *res_data;                 // N * RD floats,
-
+    LinuxAlignedFileReader *reader;   // Linux File Reader
     IVFRES();
 
     IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
@@ -68,7 +68,10 @@ public:
     ~IVFRES();
 
     ResultHeap search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
-                      float distK = std::numeric_limits<float>::max(), Disk_IO *read_buffer = nullptr) const;
+                      float distK = std::numeric_limits<float>::max()) const;
+
+    ResultHeap disk_search(float *query, float *rd_query, uint32_t k, uint32_t range, uint32_t nprobe) const;
+
 
     static void fast_scan(ResultHeap &KNNs, float &distK, uint32_t k,
                           uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac,
@@ -83,11 +86,10 @@ public:
                          const float width, const float sumq,
                          float *query, float *data, float *res_data, uint32_t *id);
 
-    static void disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
-                          uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac,
-                          const float sqr_y, const float res_sqr_y, const float res_error, const float vl,
-                          const float width, const float sumq,
-                          float *query, float *data, uint32_t *id, Disk_IO *read_buffer);
+    static void disk_scan(DiskResultHeap &KNNs, uint32_t k, \
+                        uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac, \
+                        const float sqr_y,const float res_error,const float res_sqr_y, const float vl, const float width, const float sumq, \
+                        uint32_t *id);
 
 
     void uniform_prune_parameter_config(const Matrix<float> &X);
@@ -290,12 +292,10 @@ void IVFRES<D, B>::res_scan(ResultHeap &KNNs, float &distK, uint32_t k,
 }
 
 template<uint32_t D, uint32_t B>
-void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
-                             uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac,
-                             const float sqr_y, const float res_sqr_y, const float res_error, const float vl,
-                             const float width, const float sumq,
-                             float *query, float *data, uint32_t *id, Disk_IO *read_buffer) {
-    float buffer[D];
+void IVFRES<D, B>::disk_scan(DiskResultHeap &KNNs, uint32_t k, \
+                        uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac, \
+                        const float sqr_y, const float res_error, const float res_sqr_y, const float vl, const float width, const float sumq, \
+                        uint32_t *id) {
     for (int i = 0; i < B / 4 * 16; i++)LUT[i] *= 2;
     float y = std::sqrt(sqr_y);
     constexpr uint32_t SIZE = 32;
@@ -304,8 +304,6 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
     uint32_t nblk_remain = (remain + 31) / 32;
 
     while (it--) {
-        float low_dist[SIZE];
-        float *ptr_low_dist = &low_dist[0];
         uint16_t PORTABLE_ALIGN32 result[SIZE];
         accumulate<B>((SIZE / 32), packed_code, LUT, result);
         packed_code += SIZE * B / 8;
@@ -314,66 +312,31 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
             float tmp_dist = (ptr_fac->sqr_x) + sqr_y + res_sqr_y + ptr_fac->factor_ppc * vl +
                              (result[i] - sumq) * (ptr_fac->factor_ip) * width;
             float error_bound = y * (ptr_fac->error) + res_error;
-            *ptr_low_dist = tmp_dist - error_bound;
+            KNNs.emplace(tmp_dist, error_bound, *id);
+            if (KNNs.size() > k) KNNs.pop();
             ptr_fac++;
-            ptr_low_dist++;
+            id++;
 #ifdef COUNT_SCAN
             all_dist_count++;
 #endif
         }
-        ptr_low_dist = &low_dist[0];
-        for (int j = 0; j < SIZE; j++) {
-            if (*ptr_low_dist < distK) {
-                read_buffer->single_disk_io(*id, buffer);
-                float gt_dist = sqr_dist<D>(query, buffer);
-#ifdef COUNT_SCAN
-                count_scan++;
-#endif
-                if (gt_dist < distK) {
-                    KNNs.emplace(gt_dist, *id);
-                    if (KNNs.size() > k) KNNs.pop();
-                    if (KNNs.size() == k)distK = KNNs.top().first;
-                }
-            }
-            ptr_low_dist++;
-            id++;
-        }
     }
 
     {
-        float low_dist[SIZE];
-        float *ptr_low_dist = &low_dist[0];
         uint16_t PORTABLE_ALIGN32 result[SIZE];
         accumulate<B>(nblk_remain, packed_code, LUT, result);
 
         for (int i = 0; i < remain; i++) {
             float tmp_dist = (ptr_fac->sqr_x) + sqr_y + res_sqr_y + ptr_fac->factor_ppc * vl +
-                             (result[i] - sumq) * ptr_fac->factor_ip * width;
+                             (result[i] - sumq) * (ptr_fac->factor_ip) * width;
             float error_bound = y * (ptr_fac->error) + res_error;
+            KNNs.emplace(tmp_dist, error_bound, *id);
+            if (KNNs.size() > k) KNNs.pop();
+            ptr_fac++;
+            id++;
 #ifdef COUNT_SCAN
             all_dist_count++;
 #endif
-            // ***********************************************************************************************
-            *ptr_low_dist = tmp_dist - error_bound;
-            ptr_fac++;
-            ptr_low_dist++;
-        }
-        ptr_low_dist = &low_dist[0];
-        for (int i = 0; i < remain; i++) {
-            if (*ptr_low_dist < distK) {
-                read_buffer->single_disk_io(*id, buffer);
-                float gt_dist = sqr_dist<D>(query, buffer);
-#ifdef COUNT_SCAN
-                count_scan++;
-#endif
-                if (gt_dist < distK) {
-                    KNNs.emplace(gt_dist, *id);
-                    if (KNNs.size() > k) KNNs.pop();
-                    if (KNNs.size() == k)distK = KNNs.top().first;
-                }
-            }
-            ptr_low_dist++;
-            id++;
         }
     }
 }
@@ -382,8 +345,7 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
 // search impl
 template<uint32_t D, uint32_t B>
 ResultHeap
-IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe, float distK,
-                     Disk_IO *read_buffer) const {
+IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe, float distK) const {
     // The default value of distK is +inf
     ResultHeap KNNs;
     // ===========================================================================================================
@@ -444,6 +406,106 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
 #endif
     }
     return KNNs;
+}
+
+// disk search impl
+template<uint32_t D, uint32_t B>
+ResultHeap IVFRES<D, B>::disk_search(float *query, float *rd_query, uint32_t k, uint32_t range, uint32_t nprobe) const {
+    IOContext ctx = reader->get_ctx();
+    std::vector<AlignedRead> read_reqs;
+    char *buf = nullptr;
+    DiskResultHeap KNNs;
+    ResultHeap Final_KNNs;
+    // ===========================================================================================================
+    // Compute the residual error bound
+    float res_error = 0;
+    for (int i = B; i < D; i++) {
+        res_error += var_[i] * query[i] * query[i];
+    }
+    res_error = var_count * std::sqrt(res_error);
+    // ===========================================================================================================
+    // Find out the nearest N_{probe} centroids to the query vector.
+    Result centroid_dist[numC];
+    float *ptr_c = centroid;
+    float res_sqr_y = ip_sim<D - B>(query + B, query + B);
+    for (int i = 0; i < C; i++) {
+        centroid_dist[i].first = sqr_dist<B>(rd_query, ptr_c);
+        centroid_dist[i].second = i;
+        ptr_c += B;
+    }
+    std::partial_sort(centroid_dist, centroid_dist + nprobe, centroid_dist + numC);
+
+    // ===========================================================================================================
+    // Scan the first nprobe clusters.
+    Result *ptr_centroid_dist = (&centroid_dist[0]);
+    uint8_t  PORTABLE_ALIGN64 byte_query[B];
+
+    for (int pb = 0; pb < nprobe; pb++) {
+        uint32_t c = ptr_centroid_dist->second;
+        float sqr_y = ptr_centroid_dist->first;
+        ptr_centroid_dist++;
+
+        // =======================================================================================================
+        // Preprocess the residual query and the quantized query
+        float vl, vr;
+        space.range(rd_query, centroid + c * B, vl, vr);
+        float width = (vr - vl) / ((1 << B_QUERY) - 1);
+        uint32_t sum_q = 0;
+        space.quantize(byte_query, rd_query, centroid + c * B, u, vl, width, sum_q);
+        uint8_t PORTABLE_ALIGN32 LUT[B / 4 * 16];
+        pack_LUT<B>(byte_query, LUT);
+        disk_scan(KNNs, range, \
+                LUT, packed_code + packed_start[c], len[c], fac + start[c], \
+                sqr_y,res_error, res_sqr_y, vl, width, sum_q, id + start[c]);
+    }
+    std::vector<DiskResult> rerank_list;
+    while (!KNNs.empty()) {
+        auto top_node = KNNs.top();
+        rerank_list.push_back(top_node);
+        KNNs.pop();
+    }
+    sort(rerank_list.begin(), rerank_list.end());
+#ifdef RERANK
+    unsigned Round_Up = (D * 4) % 512 == 0 ? D * 4 : ((D * 4) / 512 + 1) * 512;
+    alloc_aligned((void **) &buf, Round_Up * range, ALIGN_LEN);
+    float distK = MAXFLOAT;
+    for (size_t i = 0; i < range; ++i) {
+        unsigned probe = rerank_list[i].id;
+        read_reqs.emplace_back(probe * Round_Up, Round_Up, buf + i * Round_Up);
+    }
+    disk_ios += range;
+    reader->read(read_reqs, ctx);
+    for (size_t i = 0; i < range; ++i) {
+        unsigned probe = rerank_list[i].id;
+        auto *begin = (float *) (buf + i * Round_Up);
+        float cur_dist = sqr_dist<D>(query, begin);
+        Final_KNNs.emplace(cur_dist, probe);
+        if (Final_KNNs.size() > k) Final_KNNs.pop();
+    }
+    free(buf);
+#else
+    unsigned Round_Up = (D * 4) % 512 == 0 ? D * 4 : ((D * 4) / 512 + 1) * 512;
+    alloc_aligned((void **) &buf, Round_Up * range, ALIGN_LEN);
+    std::vector<uint32_t> rerank_id;
+    for (size_t i = 0; i < range; ++i) {
+        uint32_t probe = rerank_list[i].id;
+        if(rerank_list[i].tmp_dist - rerank_list[i].dist_error < rerank_list[k].tmp_dist + rerank_list[i].dist_error){
+            rerank_id.push_back(probe);
+            read_reqs.emplace_back(probe * Round_Up, Round_Up, buf + i * Round_Up);
+        }
+    }
+    disk_ios += read_reqs.size();
+    reader->read(read_reqs, ctx);
+    for (uint32_t i = 0; i < rerank_id.size(); i++) {
+        uint32_t probe = rerank_id[i];
+        auto *begin = (float *) (buf + i * Round_Up);
+        float cur_dist = sqr_dist<D>(query, begin);
+        Final_KNNs.emplace(cur_dist, probe);
+        if (Final_KNNs.size() > k) Final_KNNs.pop();
+    }
+    free(buf);
+#endif
+    return Final_KNNs;
 }
 
 

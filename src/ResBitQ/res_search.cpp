@@ -260,7 +260,7 @@ int main(int argc, char *argv[]) {
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 100;
-        var_count = 1000;
+        var_count = 100;
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "tiny5m") {

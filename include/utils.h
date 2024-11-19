@@ -20,6 +20,8 @@
 #endif
 #define IS_ALIGNED(X, Y) ((uint64_t)(X) % (uint64_t)(Y) == 0)
 #define IS_512_ALIGNED(X) IS_ALIGNED(X, 512)
+#define SECTOR_LEN 4096
+#define ALIGN_LEN 512
 
 typedef std::pair<float, uint32_t> Result;
 typedef std::priority_queue<Result> ResultHeap;

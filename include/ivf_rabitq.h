@@ -12,8 +12,6 @@
 // ==================================================================
 #pragma once
 #define RANDOM_QUERY_QUANTIZATION
-#define SECTOR_LEN 4096
-#define ALIGN_LEN 512
 
 #include <queue>
 #include <vector>
