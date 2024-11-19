@@ -63,8 +63,9 @@ int main(int argc, char *argv[]) {
     char mean_path[256] = "";
 
     sprintf(data_path, "%s%s_proj.fvecs", source, dataset);
+#ifndef LARGE_DATA
     Matrix<float> X(data_path);
-
+#endif
     sprintf(mean_path, "%s%s_mean.fvecs", source, dataset);
     Matrix<float> M(mean_path);
 
@@ -92,6 +93,7 @@ int main(int argc, char *argv[]) {
     // ==============================================================================================================
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
+#ifndef LARGE_DATA
     if (str_data == "msong") {
         const uint32_t BB = 128, DIM = 420;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
@@ -138,9 +140,26 @@ int main(int argc, char *argv[]) {
         ivf.save(index_path);
     }
     if (str_data == "msmarc-small") {
-        const uint32_t BB = 256, DIM = 1024;
+        const uint32_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
+    if (str_data == "yt1m") {
+        const uint32_t BB = 512, DIM = 1024;
+        IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+        ivf.save(index_path);
+    }
+#else
+    if (str_data == "msmarc") {
+        const uint32_t BB = 512, DIM = 1024;
+        IVFRES<DIM, BB> ivf(data_path, C, dist_to_centroid, x0, cluster_id, binary, M);
+        ivf.save(index_path);
+    }
+    if (str_data == "tiny5m") {
+        const uint32_t BB = 128, DIM = 384;
+        IVFRES<DIM, BB> ivf(data_path, C, dist_to_centroid, x0, cluster_id, binary, M);
+        ivf.save(index_path);
+    }
+#endif
     return 0;
 }

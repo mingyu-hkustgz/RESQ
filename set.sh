@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 #export datasets=("gist" "msong" "deep1M" "tiny5m" "OpenAI-1536" "OpenAI-3072" "msmarc-small")
 export datasets=("OpenAI-1536")
 export store_path=/home/DATA/vector_data
+=======
+#export datasets=("gist" "msong" "deep1M" "OpenAI-1536" "OpenAI-3072" "msmarc-small")
+export datasets=("msmarc")
+export store_path=./DATA
+>>>>>>> main
 export result_path=./results

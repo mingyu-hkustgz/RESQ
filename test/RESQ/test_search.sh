@@ -21,7 +21,9 @@ for data in "${datasets[@]}"; do
     elif [ $data == "OpenAI-3072" ]; then
       B=512
     elif [ $data == "msmarc-small" ]; then
-      B=256
+      B=512
+    elif [ $data == "yt1m" ]; then
+      B=512
     fi
     res="${result_path}/recall@${K}/${data}/"
     ./cmake-build-debug/src/res_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} -t 1

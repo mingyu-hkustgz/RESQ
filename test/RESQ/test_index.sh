@@ -20,7 +20,9 @@ for data in "${datasets[@]}"; do
   elif [ $data == "OpenAI-3072" ]; then
     B=512
   elif [ $data == "msmarc-small" ]; then
-    B=256
+    B=512
+  elif [ $data == "yt1m" ]; then
+    B=512
   fi
 
   log_file="./results/time-log/${data}/ResQ-PCA-Train-time.log"

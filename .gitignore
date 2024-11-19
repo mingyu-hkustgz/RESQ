@@ -1,9 +1,13 @@
 __pycache__
 .idea
 .vscode
+.uuid
+.uid
 /data
 /DATA
 /cmake-build-debug
+/build
+/build-extra
 /results
 /logger
 /figure

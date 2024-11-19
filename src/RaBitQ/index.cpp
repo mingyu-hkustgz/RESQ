@@ -134,5 +134,10 @@ int main(int argc, char *argv[]) {
         IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
         ivf.save(index_path);
     }
+    if (str_data == "yt1m") {
+        const uint32_t BB = 1024, DIM = 1024;
+        IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
+        ivf.save(index_path);
+    }
     return 0;
 }

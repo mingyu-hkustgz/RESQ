@@ -22,6 +22,8 @@ for data in "${datasets[@]}"; do
       B=3072
     elif [ $data == "msmarc-small" ]; then
       B=1024
+    elif [ $data == "yt1m" ]; then
+      B=1024
     fi
     res="${result_path}/recall@${K}/${data}/"
     ./cmake-build-debug/src/rabit_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} -t 1

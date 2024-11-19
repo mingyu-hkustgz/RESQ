@@ -1,3 +1,4 @@
+#define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
 #define FAST_SCAN
 #define COUNT_SCAN
@@ -18,42 +19,63 @@ const int MAXK = 100;
 
 long double rotation_time = 0;
 int probe_base = 50;
-int parallel_thread = 1;
+int parallel_threads = 1;
 char data_path[256] = "";
 
 template<uint32_t D, uint32_t B>
 void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsigned> &G,
           const IVFRES<D, B> &ivf, int k) {
+    float sys_t, usr_t, usr_t_sum = 0, search_time = 0;
+    struct rusage run_start, run_end;
+
     // ========================================================================
     // Search Parameter
     // ========================================================================
 
-    for (int nprobe = probe_base; nprobe <= probe_base * 20; nprobe += probe_base) {
-        int correct = 0;
-        auto start = std::chrono::high_resolution_clock::now();
-#pragma omp parallel for schedule(dynamic, parallel_thread)
-        for (int i = 0; i < Q.n; i++) {
-            ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe);
-#pragma omp critical
-            {
-                int tmp_correct = 0;
-                while (KNNs.empty() == false) {
-                    int id = KNNs.top().second;
-                    KNNs.pop();
-                    for (int j = 0; j < k; j++)
-                        if (id == G.data[i * G.d + j])tmp_correct++;
-                }
-                correct += tmp_correct;
-            }
-        }
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> duration = end - start;
-        float total_time = duration.count() * 1e6;
-        float time_us_per_query = total_time / Q.n + rotation_time;
-        float recall = 1.0f * correct / (Q.n * k);
-        cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
-    }
+    float total_time = 0;
+    float total_ratio = 0;
+    int correct = 0;
+#ifdef COUNT_SCAN
+    count_scan = 0;
+    all_dist_count = 0;
+#endif
+    omp_set_num_threads(parallel_threads);
+#pragma omp parallel for schedule(dynamic, parallel_threads)
+    for (int i = 0; i < Q.n; i++) {
+        GetCurTime(&run_start);
+        auto read_buffer = new Disk_IO;
+        read_buffer->init_data_file(data_path);
+        ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, probe_base,
+                                     std::numeric_limits<float>::max(), read_buffer);
 
+        GetCurTime(&run_end);
+        GetTime(&run_start, &run_end, &usr_t, &sys_t);
+#pragma omp critical
+        {
+            total_time += usr_t * 1e6;
+            int tmp_correct = 0;
+            while (KNNs.empty() == false) {
+                int id = KNNs.top().second;
+                KNNs.pop();
+                for (int j = 0; j < k; j++)
+                    if (id == G.data[i * G.d + j])tmp_correct++;
+            }
+            correct += tmp_correct;
+        };
+    }
+    float time_us_per_query = total_time / Q.n + rotation_time;
+    float recall = 1.0f * correct / (Q.n * k);
+
+//        cout << "------------------------------------------------" << endl;
+//#ifdef COUNT_SCAN
+//        cout << "Count Full Scan " << count_scan << endl;
+//        cout << "All Distance Count " << all_dist_count << endl;
+//        cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
+//#endif
+//        cout << "nprobe = " << nprobe << " k = " << k << endl;
+//        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
+//        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
+    cout << recall * 100.0 << " " << 1e6 / (time_us_per_query)<<" "<<count_scan<<" "<<all_dist_count<<" Ratio:: " << (double) count_scan / all_dist_count<<" "<<getPeakRSS() << " " << endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -81,7 +103,7 @@ int main(int argc, char *argv[]) {
     int subk = 0;
 
     while (iarg != -1) {
-        iarg = getopt_long(argc, argv, "d:r:k:s:b:t:", longopts, &ind);
+        iarg = getopt_long(argc, argv, "d:r:k:s:b:p:", longopts, &ind);
         switch (iarg) {
             case 'k':
                 if (optarg)subk = atoi(optarg);
@@ -98,8 +120,11 @@ int main(int argc, char *argv[]) {
             case 'b':
                 if (optarg) bit = atoi(optarg);
                 break;
+            case 'p':
+                if (optarg) probe_base = atoi(optarg);
+                break;
             case 't':
-                if (optarg) parallel_thread = atoi(optarg);
+                if (optarg) parallel_threads = atoi(optarg);
                 break;
         }
     }
@@ -138,7 +163,9 @@ int main(int argc, char *argv[]) {
     std::cerr << index_path << std::endl;
 
     char result_file_view[256] = "";
-#if defined(RESIDUAL_SPLIT)
+#if  defined(DISK_SCAN)
+    sprintf(result_file_view, "%s%s_ivf_disk_res_scan.log", result_path, dataset, numC, bit);
+#elif defined(RESIDUAL_SPLIT)
     sprintf(result_file_view, "%s%s_ivf_split_scan.log", result_path, dataset, numC, bit);
 #else
     sprintf(result_file_view, "%s%s_ivf_res_scan.log", result_path, dataset, numC, bit);
@@ -147,8 +174,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "Loading Succeed!" << std::endl;
     // ================================================================================================================================
 
-    omp_set_num_threads(parallel_thread);
-    std::cerr<<"number of threads: "<<parallel_thread<<std::endl;
+
     freopen(result_file_view, "a", stdout);
     float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
     struct rusage run_start, run_end;
@@ -165,12 +191,10 @@ int main(int argc, char *argv[]) {
     rotation_time = usr_t * 1e6 / Q.n;
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
-#ifndef LARGE_DATA
     if (str_data == "msong") {
         const uint32_t BB = 128, DIM = 420;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 5;
         var_count = 5;
         test(PCAQ, RandQ, G, ivf, subk);
     }
@@ -178,7 +202,6 @@ int main(int argc, char *argv[]) {
         const uint32_t BB = 128, DIM = 960;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 25;
         var_count = 5;
         test(PCAQ, RandQ, G, ivf, subk);
     }
@@ -186,7 +209,6 @@ int main(int argc, char *argv[]) {
         const uint32_t BB = 128, DIM = 256;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 15;
         var_count = 5;
         test(PCAQ, RandQ, G, ivf, subk);
     }
@@ -194,7 +216,6 @@ int main(int argc, char *argv[]) {
         const uint32_t BB = 128, DIM = 384;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 25;
         var_count = 4;
         test(PCAQ, RandQ, G, ivf, subk);
     }
@@ -202,15 +223,13 @@ int main(int argc, char *argv[]) {
         const uint32_t BB = 256, DIM = 300;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 15;
-        var_count = 3;
+        var_count = 4;
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "sift") {
         const uint32_t BB = 64, DIM = 128;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 8;
         var_count = 4;
         test(PCAQ, RandQ, G, ivf, subk);
     }
@@ -218,7 +237,6 @@ int main(int argc, char *argv[]) {
         const uint32_t BB = 256, DIM = 300;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 15;
         var_count = 4;
         test(PCAQ, RandQ, G, ivf, subk);
     }
@@ -226,7 +244,6 @@ int main(int argc, char *argv[]) {
         const uint32_t BB = 512, DIM = 1536;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 30;
         var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
@@ -234,7 +251,6 @@ int main(int argc, char *argv[]) {
         const uint32_t BB = 512, DIM = 3072;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 30;
         var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
@@ -242,7 +258,6 @@ int main(int argc, char *argv[]) {
         const uint32_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 30;
         var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
@@ -250,27 +265,12 @@ int main(int argc, char *argv[]) {
         const uint32_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
-        probe_base = 30;
         var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
-#else
-    if (str_data == "msmarc") {
-        const uint32_t BB = 512, DIM = 1024;
-        IVFRES<DIM, BB> ivf;
-        ivf.load(index_path);
-        probe_base = 100;
-        var_count = 1000;
-        test(PCAQ, RandQ, G, ivf, subk);
-    }
-    if (str_data == "tiny5m") {
-        const uint32_t BB = 128, DIM = 384;
-        IVFRES<DIM, BB> ivf;
-        ivf.load(index_path);
-        probe_base = 100;
-        var_count = 4;
-        test(PCAQ, RandQ, G, ivf, subk);
-    }
-#endif
+    char mem_peak_file[256] = "";
+    sprintf(mem_peak_file, "./results/space-log/%s/%s-mem-res-peak.log", dataset, dataset);
+    std::ofstream fout(mem_peak_file);
+    fout << "MEM Peak:: " << getPeakRSS() << endl;
     return 0;
 }
