@@ -18,6 +18,8 @@ for data in "${datasets[@]}"; do
         B=512
       elif [ $data == "gist" ]; then
         B=128
+      elif [ $data == "sift" ]; then
+        B=64
       fi
       result_path="./results/recall@${K}/${data}/"
       ./cmake-build-debug/src/res_search_hnsw -d ${data} -s "./DATA/${data}/" -b ${B} -r ${result_path}

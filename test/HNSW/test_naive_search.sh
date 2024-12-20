@@ -18,6 +18,8 @@ for K in {20,100}; do
       efSearch=100
     elif [ $data == "deep1M" ]; then
       efSearch=50
+    elif [ $data == "sift" ]; then
+      efSearch=50
     elif [ $data == "msmarc-small" ]; then
       efSearch=50
     elif [ $data == "deep100M" ]; then

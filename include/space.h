@@ -216,6 +216,42 @@ inline float sqr_dist(float *d, float *q) {
     return ret;
 }
 
+// The implementation is based on https://github.com/nmslib/hnswlib/blob/master/hnswlib/space_l2.h
+template<uint32_t L>
+inline float sqr_512_dist(float *p, float *q) {
+    float PORTABLE_ALIGN64 TmpRes[16];
+    size_t qty16 = L >> 4;;
+
+    const float *pEnd1 = p + (qty16 << 4);
+
+    __m512 diff, v1, v2;
+    __m512 sum = _mm512_set1_ps(0);
+
+    while (p < pEnd1) {
+        v1 = _mm512_loadu_ps(p);
+        p += 16;
+        v2 = _mm512_loadu_ps(q);
+        p += 16;
+        diff = _mm512_sub_ps(v1, v2);
+        // sum = _mm512_fmadd_ps(diff, diff, sum);
+        sum = _mm512_add_ps(sum, _mm512_mul_ps(diff, diff));
+    }
+
+    _mm512_store_ps(TmpRes, sum);
+    float res = TmpRes[0] + TmpRes[1] + TmpRes[2] + TmpRes[3] + TmpRes[4] + TmpRes[5] + TmpRes[6] +
+                TmpRes[7] + TmpRes[8] + TmpRes[9] + TmpRes[10] + TmpRes[11] + TmpRes[12] +
+                TmpRes[13] + TmpRes[14] + TmpRes[15];
+
+
+    for (int i = 0; i < L % 16; i++) {
+        float tmp = (*p) - (*q);
+        res += tmp * tmp;
+        p++;
+        q++;
+    }
+    return res;
+}
+
 template<uint32_t L>
 inline float ip_sim(float *d, float *q) {
     float PORTABLE_ALIGN32 TmpRes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -254,6 +290,63 @@ inline float ip_sim(float *d, float *q) {
         q++;
     }
     return ret;
+}
+
+template<uint32_t L>
+inline float ip_512_sim(float *p, float *q) {
+    float PORTABLE_ALIGN64 TmpRes[16];
+    size_t qty16 = L / 16;
+
+
+    const float *pEnd1 = p + 16 * qty16;
+
+    __m512 sum512 = _mm512_set1_ps(0);
+
+    size_t loop = qty16 / 4;
+
+    while (loop--) {
+        __m512 v1 = _mm512_loadu_ps(p);
+        __m512 v2 = _mm512_loadu_ps(q);
+        p += 16;
+        q += 16;
+
+        __m512 v3 = _mm512_loadu_ps(p);
+        __m512 v4 = _mm512_loadu_ps(q);
+        p += 16;
+        q += 16;
+
+        __m512 v5 = _mm512_loadu_ps(p);
+        __m512 v6 = _mm512_loadu_ps(q);
+        p += 16;
+        q += 16;
+
+        __m512 v7 = _mm512_loadu_ps(p);
+        __m512 v8 = _mm512_loadu_ps(q);
+        p += 16;
+        q += 16;
+
+        sum512 = _mm512_fmadd_ps(v1, v2, sum512);
+        sum512 = _mm512_fmadd_ps(v3, v4, sum512);
+        sum512 = _mm512_fmadd_ps(v5, v6, sum512);
+        sum512 = _mm512_fmadd_ps(v7, v8, sum512);
+    }
+
+    while (p < pEnd1) {
+        __m512 v1 = _mm512_loadu_ps(p);
+        __m512 v2 = _mm512_loadu_ps(q);
+        p += 16;
+        q += 16;
+        sum512 = _mm512_fmadd_ps(v1, v2, sum512);
+    }
+
+    float sum = _mm512_reduce_add_ps(sum512);
+
+    for (int i = 0; i < L % 16; i++) {
+        sum += (*p) * (*q);
+        p++;
+        q++;
+    }
+    return sum;
 }
 
 template<uint32_t L>

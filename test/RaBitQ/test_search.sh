@@ -28,5 +28,6 @@ for data in "${datasets[@]}"; do
     res="${result_path}/recall@${K}/${data}/"
     ./cmake-build-debug/src/rabit_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} -t 1
     ./cmake-build-debug/src/rabit_fast_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} -t 1
+    ./cmake-build-debug/src/rabit_fast_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} -t 1
   done
 done

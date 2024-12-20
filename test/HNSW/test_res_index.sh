@@ -17,6 +17,8 @@ for data in "${datasets[@]}"; do
     B=512
   elif [ $data == "gist" ]; then
     B=128
+  elif [ $data == "sift" ]; then
+    B=64
   fi
   log_file="./results/time-log/${data}/RES-HNSW-Index-Time.log"
   start_time=$(date +%s)

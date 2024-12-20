@@ -20,7 +20,7 @@ for data in "${datasets[@]}"; do
   fi
   log_file="./results/time-log/${data}/Rabit-HNSW-Index-Time.log"
   start_time=$(date +%s)
-  python ./script/RaBitQ/rabitq-o.py -d ${data}
+  python ./script/RaBitQ/rabitq-o.py -d ${data} -b ${B}
   ./cmake-build-debug/src/rabit_index_hnsw -d ${data} -s "./DATA/${data}/"
   end_time=$(date +%s)
   duration=$((end_time - start_time))

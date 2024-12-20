@@ -18,6 +18,8 @@ for data in "${datasets[@]}"; do
         B=3072
       elif [ $data == "gist" ]; then
         B=960
+      elif [ $data == "sift" ]; then
+        B=128
       fi
       result_path="./results/recall@${K}/${data}/"
       ./cmake-build-debug/src/rabit_search_hnsw -d ${data} -s "./DATA/${data}/" -b ${B} -r ${result_path}
