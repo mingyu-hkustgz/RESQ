@@ -22,6 +22,8 @@ for data in "${datasets[@]}"; do
       B=3072
     elif [ $data == "msmarc-small" ]; then
       B=1024
+    elif [ $data == "msmarc10m" ]; then
+      B=1024
     elif [ $data == "yt1m" ]; then
       B=1024
     fi

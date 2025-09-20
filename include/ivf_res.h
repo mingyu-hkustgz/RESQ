@@ -704,23 +704,23 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
         start[i] -= len[i];
     }
 
-    centroid = new float[C * B];
+    centroid = new float[(size_t) C * B];
 #ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
     data = new float[(uint64_t) N * B];
     res_data = new float[(uint64_t) N * RD];
 #else
-    data = new float[N * D];
+    data = new float[(size_t) N * D];
 #endif
 #endif
-    binary_code = new uint64_t[N * B / 64];
+    binary_code = new uint64_t[(size_t) N * B / 64];
 
-    std::memcpy(centroid, _centroids.data, C * B * sizeof(float));
+    std::memcpy(centroid, _centroids.data, (size_t) C * B * sizeof(float));
     float *data_ptr = data;
     float *res_ptr = res_data;
     uint64_t *binary_code_ptr = binary_code;
     for (int i = 0; i < N; i++) {
-        int x = id[i];
+        size_t x = id[i];
 #ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
         data_ptr[0] = ip_sim<D>(X.data + x * X.d, X.data + x * X.d);

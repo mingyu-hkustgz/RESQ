@@ -627,20 +627,20 @@ IVFRN<D, B>::IVFRN(const Matrix<float> &X, const Matrix<float> &_centroids, cons
         start[i] -= len[i];
     }
 
-    centroid = new float[C * B];
-    data = new float[N * D];
-    binary_code = new uint64_t[N * B / 64];
+    centroid = new float[(size_t) C * B];
+    data = new float[(size_t) N * D];
+    binary_code = new uint64_t[(size_t) N * B / 64];
 
-    std::memcpy(centroid, _centroids.data, C * B * sizeof(float));
+    std::memcpy(centroid, _centroids.data, (size_t) C * B * sizeof(float));
     float *data_ptr = data;
     uint64_t *binary_code_ptr = binary_code;
 
     for (int i = 0; i < N; i++) {
-        int x = id[i];
+        size_t x = id[i];
 #ifndef DISK_SCAN
         std::memcpy(data_ptr, X.data + x * D, D * sizeof(float));
 #endif
-        std::memcpy(binary_code_ptr, binary.data + x * (B / 64), (B / 64) * sizeof(uint64_t));
+        std::memcpy(binary_code_ptr, binary.data + (size_t) x * (B / 64), (B / 64) * sizeof(uint64_t));
         data_ptr += D;
         binary_code_ptr += B / 64;
     }
