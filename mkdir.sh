@@ -6,9 +6,9 @@ mkdir ./results/recall@100
 mkdir ./results/time-log
 mkdir ./results/space-log
 
-rm -rf cmake-build-debug
-mkdir cmake-build-debug
-cd cmake-build-debug
+rm -rf build
+mkdir build
+cd build
 
 cmake ..
 make clean

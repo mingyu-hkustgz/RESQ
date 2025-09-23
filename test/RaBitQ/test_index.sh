@@ -41,7 +41,7 @@ for data in "${datasets[@]}"; do
 
   log_file="./results/time-log/${data}/RabitQ-IVF-Index-time.log"
   start_time=$(date +%s)
-  ./cmake-build-debug/src/rabit_index -d ${data} -s "./DATA/${data}/" -b ${B}
+  ./build/src/rabit_index -d ${data} -s "./DATA/${data}/" -b ${B}
   end_time=$(date +%s)
   duration=$((end_time - start_time))
   echo "RabitQ IVF Index time: ${duration}(s)" | tee -a ${log_file}

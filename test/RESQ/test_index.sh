@@ -48,14 +48,14 @@ for data in "${datasets[@]}"; do
 
   log_file="./results/time-log/${data}/ResQ-Index-time.log"
   start_time=$(date +%s)
-  ./cmake-build-debug/src/res_index -d ${data} -s "./DATA/${data}/" -b ${B}
+  ./build/src/res_index -d ${data} -s "./DATA/${data}/" -b ${B}
   end_time=$(date +%s)
   duration=$((end_time - start_time))
   echo "Resq IVF Index time: ${duration}(s)" | tee -a ${log_file}
 
   log_file="./results/time-log/${data}/ResQ-Split-time.log"
   start_time=$(date +%s)
-  ./cmake-build-debug/src/res_split_index -d ${data} -s "./DATA/${data}/" -b ${B}
+  ./build/src/res_split_index -d ${data} -s "./DATA/${data}/" -b ${B}
   end_time=$(date +%s)
   duration=$((end_time - start_time))
   echo "Resq IVF Split time: ${duration}(s)" | tee -a ${log_file}

@@ -14,7 +14,7 @@
 #include "space.h"
 #include "fast_scan.h"
 
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 class IVFRES {
 private:
 public:
@@ -31,14 +31,14 @@ public:
 
     static Space<D, B> space;
 
-    uint32_t N;                       // the number of data vectors
-    uint32_t C;                       // the number of clusters
-    uint32_t RD;                      // the residual dimensionality
+    uint64_t N;                       // the number of data vectors
+    uint64_t C;                       // the number of clusters
+    uint64_t RD;                      // the residual dimensionality
 
-    uint32_t *start;                  // the start point of a cluster
-    uint32_t *packed_start;           // the start point of a cluster (packed with batch of 32)
-    uint32_t *len;                    // the length of a cluster
-    uint32_t *id;                     // N of size_t the ids of the objects in a cluster
+    uint64_t *start;                  // the start point of a cluster
+    uint64_t *packed_start;           // the start point of a cluster (packed with batch of 32)
+    uint64_t *len;                    // the length of a cluster
+    uint64_t *id;                     // N of size_t the ids of the objects in a cluster
     float *dist_to_c;                // N of floats distance to the centroids (not the squared distance)
     float *u;                        // B of floats random numbers sampled from the uniform distribution [0,1]
     float *var_;                     // variance of each dimension
@@ -56,36 +56,36 @@ public:
     IVFRES();
 
     IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
-           const Matrix<float> &_x0, const Matrix<uint32_t> &cluster_id, const Matrix<uint64_t> &binary,
+           const Matrix<float> &_x0, const Matrix<uint64_t> &cluster_id, const Matrix<uint64_t> &binary,
            const Matrix<float> &M);
 
     IVFRES(char *file_name, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
-           const Matrix<float> &_x0, const Matrix<uint32_t> &cluster_id, const Matrix<uint64_t> &binary,
+           const Matrix<float> &_x0, const Matrix<uint64_t> &cluster_id, const Matrix<uint64_t> &binary,
            const Matrix<float> &M);
 
     ~IVFRES();
 
-    ResultHeap search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
+    ResultHeap search(float *query, float *rd_query, uint64_t k, uint64_t nprobe,
                       float distK = std::numeric_limits<float>::max(), Disk_IO *read_buffer = nullptr) const;
 
-    static void fast_scan(ResultHeap &KNNs, float &distK, uint32_t k,
-                          uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac,
+    static void fast_scan(ResultHeap &KNNs, float &distK, uint64_t k,
+                          uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac,
                           const float sqr_y, const float res_sqr_y, const float res_error, const float vl,
                           const float width, const float sumq,
-                          float *query, float *data, uint32_t *id);
+                          float *query, float *data, uint64_t *id);
 
-    static void res_scan(ResultHeap &KNNs, float &distK, uint32_t k,
-                         uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac,
+    static void res_scan(ResultHeap &KNNs, float &distK, uint64_t k,
+                         uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac,
                          const float sqr_y, const float res_sqr_y, const float res_error, const float p_res_error,
                          const float vl, const float all_sqr_y,
                          const float width, const float sumq,
-                         float *query, float *data, float *res_data, uint32_t *id);
+                         float *query, float *data, float *res_data, uint64_t *id);
 
-    static void disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
-                          uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac,
+    static void disk_scan(ResultHeap &KNNs, float &distK, uint64_t k,
+                          uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac,
                           const float sqr_y, const float res_sqr_y, const float res_error, const float vl,
                           const float width, const float sumq,
-                          float *query, float *data, uint32_t *id, Disk_IO *read_buffer);
+                          float *query, float *data, uint64_t *id, Disk_IO *read_buffer);
 
 
     void uniform_prune_parameter_config(const Matrix<float> &X);
@@ -96,19 +96,19 @@ public:
 };
 
 
-template<uint32_t D, uint32_t B>
-void IVFRES<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k,
-                             uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac,
+template<uint64_t D, uint64_t B>
+void IVFRES<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint64_t k,
+                             uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac,
                              const float sqr_y, const float res_sqr_y, const float res_error, const float vl,
                              const float width, const float sumq,
-                             float *query, float *data, uint32_t *id) {
+                             float *query, float *data, uint64_t *id) {
 
-    for (int i = 0; i < B / 4 * 16; i++)LUT[i] *= 2;
+    for (int64_t i = 0; i < B / 4 * 16; i++)LUT[i] *= 2;
     float y = std::sqrt(sqr_y);
-    constexpr uint32_t SIZE = 32;
-    uint32_t it = len / SIZE;
-    uint32_t remain = len - it * SIZE;
-    uint32_t nblk_remain = (remain + 31) / 32;
+    constexpr uint64_t SIZE = 32;
+    uint64_t it = len / SIZE;
+    uint64_t remain = len - it * SIZE;
+    uint64_t nblk_remain = (remain + 31) / 32;
 
     while (it--) {
         float low_dist[SIZE];
@@ -117,7 +117,7 @@ void IVFRES<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k,
         accumulate<B>((SIZE / 32), packed_code, LUT, result);
         packed_code += SIZE * B / 8;
 
-        for (int i = 0; i < SIZE; i++) {
+        for (int64_t i = 0; i < SIZE; i++) {
             float tmp_dist = (ptr_fac->sqr_x) + sqr_y + res_sqr_y + ptr_fac->factor_ppc * vl +
                              (result[i] - sumq) * (ptr_fac->factor_ip) * width;
             float error_bound = y * (ptr_fac->error) + res_error;
@@ -129,7 +129,7 @@ void IVFRES<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k,
 #endif
         }
         ptr_low_dist = &low_dist[0];
-        for (int j = 0; j < SIZE; j++) {
+        for (int64_t j = 0; j < SIZE; j++) {
             if (*ptr_low_dist < distK) {
 
                 float gt_dist = sqr_dist<D>(query, data);
@@ -154,7 +154,7 @@ void IVFRES<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k,
         uint16_t PORTABLE_ALIGN32 result[SIZE];
         accumulate<B>(nblk_remain, packed_code, LUT, result);
 
-        for (int i = 0; i < remain; i++) {
+        for (int64_t i = 0; i < remain; i++) {
             float tmp_dist = (ptr_fac->sqr_x) + sqr_y + res_sqr_y + ptr_fac->factor_ppc * vl +
                              (result[i] - sumq) * ptr_fac->factor_ip * width;
             float error_bound = y * (ptr_fac->error) + res_error;
@@ -167,7 +167,7 @@ void IVFRES<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k,
             ptr_low_dist++;
         }
         ptr_low_dist = &low_dist[0];
-        for (int i = 0; i < remain; i++) {
+        for (int64_t i = 0; i < remain; i++) {
             if (*ptr_low_dist < distK) {
 
                 float gt_dist = sqr_dist<D>(query, data);
@@ -187,22 +187,22 @@ void IVFRES<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k,
     }
 }
 
-template<uint32_t D, uint32_t B>
-void IVFRES<D, B>::res_scan(ResultHeap &KNNs, float &distK, uint32_t k,
-                            uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac,
+template<uint64_t D, uint64_t B>
+void IVFRES<D, B>::res_scan(ResultHeap &KNNs, float &distK, uint64_t k,
+                            uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac,
                             const float sqr_y, const float res_sqr_y, const float res_error, const float p_res_error,
                             const float vl, const float all_sqr_y,
                             const float width, const float sumq,
-                            float *query, float *data, float *res_data, uint32_t *id) {
+                            float *query, float *data, float *res_data, uint64_t *id) {
 
-    for (int i = 0; i < B / 4 * 16; i++)LUT[i] *= 2;
+    for (int64_t i = 0; i < B / 4 * 16; i++)LUT[i] *= 2;
 
     float y = std::sqrt(sqr_y);
 
-    constexpr uint32_t SIZE = 32;
-    uint32_t it = len / SIZE;
-    uint32_t remain = len - it * SIZE;
-    uint32_t nblk_remain = (remain + 31) / 32;
+    constexpr uint64_t SIZE = 32;
+    uint64_t it = len / SIZE;
+    uint64_t remain = len - it * SIZE;
+    uint64_t nblk_remain = (remain + 31) / 32;
 
     while (it--) {
         float low_dist[SIZE];
@@ -211,7 +211,7 @@ void IVFRES<D, B>::res_scan(ResultHeap &KNNs, float &distK, uint32_t k,
         accumulate<B>((SIZE / 32), packed_code, LUT, result);
         packed_code += SIZE * B / 8;
 
-        for (int i = 0; i < SIZE; i++) {
+        for (int64_t i = 0; i < SIZE; i++) {
             float tmp_dist = (ptr_fac->sqr_x) + sqr_y + res_sqr_y + ptr_fac->factor_ppc * vl +
                              (result[i] - sumq) * (ptr_fac->factor_ip) * width;
             float error_bound = y * (ptr_fac->error) + res_error;
@@ -223,7 +223,7 @@ void IVFRES<D, B>::res_scan(ResultHeap &KNNs, float &distK, uint32_t k,
 #endif
         }
         ptr_low_dist = &low_dist[0];
-        for (int j = 0; j < SIZE; j++) {
+        for (int64_t j = 0; j < SIZE; j++) {
             if (*ptr_low_dist < distK) {
 #ifdef COUNT_SCAN
                 count_scan++;
@@ -251,7 +251,7 @@ void IVFRES<D, B>::res_scan(ResultHeap &KNNs, float &distK, uint32_t k,
         uint16_t PORTABLE_ALIGN32 result[SIZE];
         accumulate<B>(nblk_remain, packed_code, LUT, result);
 
-        for (int i = 0; i < remain; i++) {
+        for (int64_t i = 0; i < remain; i++) {
             float tmp_dist = (ptr_fac->sqr_x) + sqr_y + res_sqr_y + ptr_fac->factor_ppc * vl +
                              (result[i] - sumq) * ptr_fac->factor_ip * width;
             float error_bound = y * (ptr_fac->error) + res_error;
@@ -264,7 +264,7 @@ void IVFRES<D, B>::res_scan(ResultHeap &KNNs, float &distK, uint32_t k,
 #endif
         }
         ptr_low_dist = &low_dist[0];
-        for (int i = 0; i < remain; i++) {
+        for (int64_t i = 0; i < remain; i++) {
             if (*ptr_low_dist < distK) {
 #ifdef COUNT_SCAN
                 count_scan++;
@@ -287,19 +287,19 @@ void IVFRES<D, B>::res_scan(ResultHeap &KNNs, float &distK, uint32_t k,
     }
 }
 
-template<uint32_t D, uint32_t B>
-void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
-                             uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac,
+template<uint64_t D, uint64_t B>
+void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint64_t k,
+                             uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac,
                              const float sqr_y, const float res_sqr_y, const float res_error, const float vl,
                              const float width, const float sumq,
-                             float *query, float *data, uint32_t *id, Disk_IO *read_buffer) {
+                             float *query, float *data, uint64_t *id, Disk_IO *read_buffer) {
     float buffer[D];
-    for (int i = 0; i < B / 4 * 16; i++)LUT[i] *= 2;
+    for (int64_t i = 0; i < B / 4 * 16; i++)LUT[i] *= 2;
     float y = std::sqrt(sqr_y);
-    constexpr uint32_t SIZE = 32;
-    uint32_t it = len / SIZE;
-    uint32_t remain = len - it * SIZE;
-    uint32_t nblk_remain = (remain + 31) / 32;
+    constexpr uint64_t SIZE = 32;
+    uint64_t it = len / SIZE;
+    uint64_t remain = len - it * SIZE;
+    uint64_t nblk_remain = (remain + 31) / 32;
 
     while (it--) {
         float low_dist[SIZE];
@@ -308,7 +308,7 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
         accumulate<B>((SIZE / 32), packed_code, LUT, result);
         packed_code += SIZE * B / 8;
 
-        for (int i = 0; i < SIZE; i++) {
+        for (int64_t i = 0; i < SIZE; i++) {
             float tmp_dist = (ptr_fac->sqr_x) + sqr_y + res_sqr_y + ptr_fac->factor_ppc * vl +
                              (result[i] - sumq) * (ptr_fac->factor_ip) * width;
             float error_bound = y * (ptr_fac->error) + res_error;
@@ -320,7 +320,7 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
 #endif
         }
         ptr_low_dist = &low_dist[0];
-        for (int j = 0; j < SIZE; j++) {
+        for (int64_t j = 0; j < SIZE; j++) {
             if (*ptr_low_dist < distK) {
                 read_buffer->single_disk_io(*id, buffer);
                 float gt_dist = sqr_dist<D>(query, buffer);
@@ -344,7 +344,7 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
         uint16_t PORTABLE_ALIGN32 result[SIZE];
         accumulate<B>(nblk_remain, packed_code, LUT, result);
 
-        for (int i = 0; i < remain; i++) {
+        for (int64_t i = 0; i < remain; i++) {
             float tmp_dist = (ptr_fac->sqr_x) + sqr_y + res_sqr_y + ptr_fac->factor_ppc * vl +
                              (result[i] - sumq) * ptr_fac->factor_ip * width;
             float error_bound = y * (ptr_fac->error) + res_error;
@@ -357,7 +357,7 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
             ptr_low_dist++;
         }
         ptr_low_dist = &low_dist[0];
-        for (int i = 0; i < remain; i++) {
+        for (int64_t i = 0; i < remain; i++) {
             if (*ptr_low_dist < distK) {
                 read_buffer->single_disk_io(*id, buffer);
                 float gt_dist = sqr_dist<D>(query, buffer);
@@ -378,16 +378,16 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k,
 
 
 // search impl
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 ResultHeap
-IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe, float distK,
+IVFRES<D, B>::search(float *query, float *rd_query, uint64_t k, uint64_t nprobe, float distK,
                      Disk_IO *read_buffer) const {
     // The default value of distK is +inf
     ResultHeap KNNs;
     // ===========================================================================================================
     // Compute the residual error bound
     float res_error = 0;
-    for (int i = B; i < D; i++) {
+    for (int64_t i = B; i < D; i++) {
         res_error += var_[i] * query[i] * query[i];
     }
 
@@ -402,7 +402,7 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
     float *ptr_c = centroid;
     float all_sqr_y = ip_sim<D>(query, query);
     float res_sqr_y = ip_sim<D - B>(query + B, query + B);
-    for (int i = 0; i < C; i++) {
+    for (int64_t i = 0; i < C; i++) {
         centroid_dist[i].first = sqr_dist<B>(rd_query, ptr_c);
         centroid_dist[i].second = i;
         ptr_c += B;
@@ -414,8 +414,8 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
     Result *ptr_centroid_dist = (&centroid_dist[0]);
     uint8_t  PORTABLE_ALIGN64 byte_query[B];
 
-    for (int pb = 0; pb < nprobe; pb++) {
-        uint32_t c = ptr_centroid_dist->second;
+    for (int64_t pb = 0; pb < nprobe; pb++) {
+        uint64_t c = ptr_centroid_dist->second;
         float sqr_y = ptr_centroid_dist->first;
         ptr_centroid_dist++;
 
@@ -424,7 +424,7 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
         float vl, vr;
         space.range(rd_query, centroid + c * B, vl, vr);
         float width = (vr - vl) / ((1 << B_QUERY) - 1);
-        uint32_t sum_q = 0;
+        uint64_t sum_q = 0;
         space.quantize(byte_query, rd_query, centroid + c * B, u, vl, width, sum_q);
 
         uint8_t PORTABLE_ALIGN32 LUT[B / 4 * 16];
@@ -447,20 +447,20 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint32_t k, uint32_t nprobe,
 
 // ==============================================================================================================================
 // Save and Load Functions
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 void IVFRES<D, B>::save(char *filename) {
     std::ofstream output(filename, std::ios::binary);
 
-    uint32_t d = D;
-    uint32_t b = B;
-    output.write((char *) &N, sizeof(uint32_t));
-    output.write((char *) &d, sizeof(uint32_t));
-    output.write((char *) &C, sizeof(uint32_t));
-    output.write((char *) &b, sizeof(uint32_t));
+    uint64_t d = D;
+    uint64_t b = B;
+    output.write((char *) &N, sizeof(uint64_t));
+    output.write((char *) &d, sizeof(uint64_t));
+    output.write((char *) &C, sizeof(uint64_t));
+    output.write((char *) &b, sizeof(uint64_t));
 
-    output.write((char *) start, C * sizeof(uint32_t));
-    output.write((char *) len, C * sizeof(uint32_t));
-    output.write((char *) id, N * sizeof(uint32_t));
+    output.write((char *) start, C * sizeof(uint64_t));
+    output.write((char *) len, C * sizeof(uint64_t));
+    output.write((char *) id, N * sizeof(uint64_t));
     output.write((char *) dist_to_c, N * sizeof(float));
     output.write((char *) x0, N * sizeof(float));
     output.write((char *) var_, D * sizeof(float));
@@ -468,20 +468,18 @@ void IVFRES<D, B>::save(char *filename) {
 
     output.write((char *) centroid, C * B * sizeof(float));
     output.write((char *) binary_code, (size_t) N * B / 64 * sizeof(uint64_t));
-#ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
     output.write((char *) data, (size_t) N * B * sizeof(float));
     output.write((char *) res_data, (size_t) N * (D - B + 1) * sizeof(float));
 #else
     output.write((char *) data, (size_t)N * D * sizeof(float));
 #endif
-#endif
     output.close();
     std::cerr << "Saved!" << std::endl;
 }
 
 // load impl
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 void IVFRES<D, B>::load(char *filename) {
     std::ifstream input(filename, std::ios::binary);
     //std::cerr << filename << std::endl;
@@ -489,12 +487,12 @@ void IVFRES<D, B>::load(char *filename) {
     if (!input.is_open())
         throw std::runtime_error("Cannot open file");
 
-    uint32_t d;
-    uint32_t b;
-    input.read((char *) &N, sizeof(uint32_t));
-    input.read((char *) &d, sizeof(uint32_t));
-    input.read((char *) &C, sizeof(uint32_t));
-    input.read((char *) &b, sizeof(uint32_t));
+    uint64_t d;
+    uint64_t b;
+    input.read((char *) &N, sizeof(uint64_t));
+    input.read((char *) &d, sizeof(uint64_t));
+    input.read((char *) &C, sizeof(uint64_t));
+    input.read((char *) &b, sizeof(uint64_t));
 
     assert(d == D);
     assert(b == B);
@@ -503,24 +501,22 @@ void IVFRES<D, B>::load(char *filename) {
 //    std::random_device rd;
 //    std::mt19937 gen(rd());
 //    std::uniform_real_distribution<> uniform(0.0, 1.0);
-    for (int i = 0; i < B; i++) u[i] = 0.5;
+    for (int64_t i = 0; i < B; i++) u[i] = 0.5;
 
     centroid = new float[C * B];
 
-#ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
-    data = new float[(size_t) N * B];
-    res_data = new float[(size_t) N * (D - B + 1)];
+    data = new float[N * B];
+    res_data = new float[N * (D - B + 1)];
 #else
     data = new float[N * D];
-#endif
 #endif
 
     binary_code = static_cast<uint64_t *>(aligned_alloc(256, (size_t) N * B / 64 * sizeof(uint64_t)));
 
-    start = new uint32_t[C];
-    len = new uint32_t[C];
-    id = new uint32_t[N];
+    start = new uint64_t[C];
+    len = new uint64_t[C];
+    id = new uint64_t[N];
     dist_to_c = new float[N];
     x0 = new float[N];
 
@@ -529,9 +525,9 @@ void IVFRES<D, B>::load(char *filename) {
     var_ = new float[D];
     mean_ = new float[D];
 
-    input.read((char *) start, C * sizeof(uint32_t));
-    input.read((char *) len, C * sizeof(uint32_t));
-    input.read((char *) id, N * sizeof(uint32_t));
+    input.read((char *) start, C * sizeof(uint64_t));
+    input.read((char *) len, C * sizeof(uint64_t));
+    input.read((char *) id, N * sizeof(uint64_t));
     input.read((char *) dist_to_c, N * sizeof(float));
     input.read((char *) x0, N * sizeof(float));
     input.read((char *) var_, D * sizeof(float));
@@ -540,32 +536,26 @@ void IVFRES<D, B>::load(char *filename) {
     input.read((char *) centroid, C * B * sizeof(float));
     input.read((char *) binary_code, (size_t) N * B / 64 * sizeof(uint64_t));
 
-#ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
     input.read((char *) data, (size_t) N * B * sizeof(float));
     input.read((char *) res_data, (size_t) N * (D - B + 1) * sizeof(float));
 #else
     input.read((char *) data, (size_t)N * D * sizeof(float));
 #endif
-#endif
 
-    packed_start = new uint32_t[C];
+    packed_start = new uint64_t[C];
     size_t cur = 0;
-    for (int i = 0; i < C; i++) {
+    for (int64_t i = 0; i < C; i++) {
         packed_start[i] = cur;
         cur += (len[i] + 31) / 32 * 32 * B / 8;
     }
     packed_code = static_cast<uint8_t *>(aligned_alloc(32, cur * sizeof(uint8_t)));
-    for (int i = 0; i < C; i++) {
+    for (int64_t i = 0; i < C; i++) {
         pack_codes<B>(binary_code + start[i] * (B / 64), len[i], packed_code + packed_start[i]);
     }
     double ave_error = 0;
-#if defined(DISK_SCAN)
-    float buffer[D];
-#endif
-    for (int i = 0; i < N; i++) {
+    for (int64_t i = 0; i < N; i++) {
         long double x_x0 = (long double) dist_to_c[i] / x0[i];
-#ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
         fac[i].sqr_x = dist_to_c[i] * dist_to_c[i] +
                        ip_sim<D - B>(res_data + i * (D - B + 1) + 1,
@@ -573,11 +563,6 @@ void IVFRES<D, B>::load(char *filename) {
 #else
         fac[i].sqr_x = dist_to_c[i] * dist_to_c[i] +
                        ip_sim<D - B>(data + i * D + B, data + i * D + B); // add the residual dim norm
-#endif
-#else
-        input.read((char*) &buffer, sizeof(float) * D);
-        fac[i].sqr_x = dist_to_c[i] * dist_to_c[i] +
-                       ip_sim<D - B>(buffer + B,buffer + B); // add the residual dim norm
 #endif
         fac[i].error = 2 * max_x1 * std::sqrt(x_x0 * x_x0 - dist_to_c[i] * dist_to_c[i]);
         ave_error += fac[i].error;
@@ -592,7 +577,7 @@ void IVFRES<D, B>::load(char *filename) {
 
 // ==============================================================================================================================
 // Construction and Deconstruction Functions
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 IVFRES<D, B>::IVFRES() {
     N = C = 0;
     start = len = id = NULL;
@@ -602,9 +587,9 @@ IVFRES<D, B>::IVFRES() {
     u = NULL;
 }
 
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
-                     const Matrix<float> &_x0, const Matrix<uint32_t> &cluster_id, const Matrix<uint64_t> &binary,
+                     const Matrix<float> &_x0, const Matrix<uint64_t> &cluster_id, const Matrix<uint64_t> &binary,
                      const Matrix<float> &M) {
     fac = NULL;
     u = NULL;
@@ -615,39 +600,37 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
     // check uint64_t
     assert(B % 64 == 0);
 
-    start = new uint32_t[C];
-    len = new uint32_t[C];
-    id = new uint32_t[N];
+    start = new uint64_t[C];
+    len = new uint64_t[C];
+    id = new uint64_t[N];
     dist_to_c = new float[N];
     x0 = new float[N];
 
     uniform_prune_parameter_config(M);
 
-    memset(len, 0, C * sizeof(uint32_t));
-    for (int i = 0; i < N; i++)len[cluster_id.data[i]]++;
-    int sum = 0;
-    for (int i = 0; i < C; i++) {
+    memset(len, 0, C * sizeof(uint64_t));
+    for (int64_t i = 0; i < N; i++)len[cluster_id.data[i]]++;
+    int64_t sum = 0;
+    for (int64_t i = 0; i < C; i++) {
         start[i] = sum;
         sum += len[i];
     }
-    for (int i = 0; i < N; i++) {
+    for (int64_t i = 0; i < N; i++) {
         id[start[cluster_id.data[i]]] = i;
         dist_to_c[start[cluster_id.data[i]]] = dist_to_centroid.data[i];
         x0[start[cluster_id.data[i]]] = _x0.data[i];
         start[cluster_id.data[i]]++;
     }
-    for (int i = 0; i < C; i++) {
+    for (int64_t i = 0; i < C; i++) {
         start[i] -= len[i];
     }
 
     centroid = new float[C * B];
-#ifndef DISK_SCAN
 #ifdef RESIDUAL_SPLIT
-    data = new float[(uint64_t) N * B];
-    res_data = new float[(uint64_t) N * RD];
+    data = new float[N * B];
+    res_data = new float[N * RD];
 #else
     data = new float[N * D];
-#endif
 #endif
     binary_code = new uint64_t[N * B / 64];
 
@@ -655,9 +638,8 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
     float *data_ptr = data;
     float *res_ptr = res_data;
     uint64_t *binary_code_ptr = binary_code;
-    for (int i = 0; i < N; i++) {
-        int x = id[i];
-#ifndef DISK_SCAN
+    for (int64_t i = 0; i < N; i++) {
+        int64_t x = id[i];
 #ifdef RESIDUAL_SPLIT
         data_ptr[0] = ip_sim<D>(X.data + x * X.d, X.data + x * X.d);
         std::memcpy(data_ptr + 1, X.data + x * X.d, (B - 1) * sizeof(float));
@@ -668,16 +650,15 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
         std::memcpy(data_ptr, X.data + x * X.d, D * sizeof(float));
         data_ptr += D;
 #endif
-#endif
         std::memcpy(binary_code_ptr, binary.data + x * (B / 64), (B / 64) * sizeof(uint64_t));
         binary_code_ptr += B / 64;
     }
     std::cerr << "load finished" << std::endl;
 }
 
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 IVFRES<D, B>::IVFRES(char *base_file, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
-                     const Matrix<float> &_x0, const Matrix<uint32_t> &cluster_id, const Matrix<uint64_t> &binary,
+                     const Matrix<float> &_x0, const Matrix<uint64_t> &cluster_id, const Matrix<uint64_t> &binary,
                      const Matrix<float> &M) {
     fac = NULL;
     u = NULL;
@@ -685,49 +666,47 @@ IVFRES<D, B>::IVFRES(char *base_file, const Matrix<float> &_centroids, const Mat
     in.seekg(0, std::ios::end);
     std::ios::pos_type ss = in.tellg();
     size_t fsize = (size_t) ss;
-    N = (unsigned) (fsize / (D + 1) / 4);
+    N = (fsize / (D + 1) / 4);
     C = _centroids.n;
     RD = D - B + 1;
     // check uint64_t
     assert(B % 64 == 0);
 
-    start = new uint32_t[C];
-    len = new uint32_t[C];
-    id = new uint32_t[N];
+    start = new uint64_t[C];
+    len = new uint64_t[C];
+    id = new uint64_t[N];
     dist_to_c = new float[N];
     x0 = new float[N];
 
     uniform_prune_parameter_config(M);
 
-    memset(len, 0, C * sizeof(uint32_t));
-    for (int i = 0; i < N; i++)len[cluster_id.data[i]]++;
-    int sum = 0;
-    for (int i = 0; i < C; i++) {
+    memset(len, 0, C * sizeof(uint64_t));
+    for (int64_t i = 0; i < N; i++)len[cluster_id.data[i]]++;
+    int64_t sum = 0;
+    for (int64_t i = 0; i < C; i++) {
         start[i] = sum;
         sum += len[i];
     }
-    std::vector<uint32_t> temp_pos(N);
-    for (int i = 0; i < N; i++) {
+    std::vector<uint64_t> temp_pos(N);
+    for (int64_t i = 0; i < N; i++) {
         id[start[cluster_id.data[i]]] = i;
         dist_to_c[start[cluster_id.data[i]]] = dist_to_centroid.data[i];
         x0[start[cluster_id.data[i]]] = _x0.data[i];
         start[cluster_id.data[i]]++;
     }
-    for (int i = 0; i < N; i++) {
+    for (int64_t i = 0; i < N; i++) {
         temp_pos[id[i]] = i;
     }
-    for (int i = 0; i < C; i++) {
+    for (int64_t i = 0; i < C; i++) {
         start[i] -= len[i];
     }
 
     centroid = new float[C * B];
-#ifndef DISK_SCANW
 #ifdef RESIDUAL_SPLIT
     data = new float[(size_t) N * B];
     res_data = new float[(size_t) N * RD];
 #else
     data = new float[N * D];
-#endif
 #endif
     binary_code = new uint64_t[(size_t) N * B / 64];
 
@@ -755,7 +734,7 @@ IVFRES<D, B>::IVFRES(char *base_file, const Matrix<float> &_centroids, const Mat
 }
 
 
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 IVFRES<D, B>::~IVFRES() {
     if (id != NULL) delete[] id;
     if (dist_to_c != NULL) delete[] dist_to_c;
@@ -771,13 +750,13 @@ IVFRES<D, B>::~IVFRES() {
     if (centroid != NULL) std::free(centroid);
 }
 
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 void IVFRES<D, B>::uniform_prune_parameter_config(const Matrix<float> &M) {
     /* Configure Prune Parameters */
     mean_ = new float[D];
     var_ = new float[D];
-    for (int i = 0; i < D; i++) mean_[i] = M.data[i];
-    for (int i = 0; i < D; i++) var_[i] = M.data[i + D];
+    for (int64_t i = 0; i < D; i++) mean_[i] = M.data[i];
+    for (int64_t i = 0; i < D; i++) var_[i] = M.data[i + D];
     std::cerr << "Parameter Configure Finished" << std::endl;
 }
 

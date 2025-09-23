@@ -21,7 +21,7 @@
 #include "space.h"
 #include "fast_scan.h"
 
-template <uint32_t D, uint32_t B>
+template <uint64_t D, uint64_t B>
 class IVFRN{
 private:
 public:
@@ -38,13 +38,13 @@ public:
 
     static Space<D,B> space;
 
-    uint32_t N;                       // the number of data vectors
-    uint32_t C;                       // the number of clusters
+    uint64_t N;                       // the number of data vectors
+    uint64_t C;                       // the number of clusters
 
-    uint32_t* start;                  // the start point of a cluster
-    uint32_t* packed_start;           // the start point of a cluster (packed with batch of 32)
-    uint32_t* len;                    // the length of a cluster
-    uint32_t* id;                     // N of size_t the ids of the objects in a cluster
+    uint64_t* start;                  // the start point of a cluster
+    uint64_t* packed_start;           // the start point of a cluster (packed with batch of 32)
+    uint64_t* len;                    // the length of a cluster
+    uint64_t* id;                     // N of size_t the ids of the objects in a cluster
     float * dist_to_c;                // N of floats distance to the centroids (not the squared distance)
     float * u;                        // B of floats random numbers sampled from the uniform distribution [0,1]
 
@@ -58,46 +58,46 @@ public:
 
     IVFRN();
     IVFRN(const Matrix<float> &X, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
-          const Matrix<float> &_x0, const Matrix<uint32_t> &cluster_id, const Matrix<uint64_t> &binary);
+          const Matrix<float> &_x0, const Matrix<uint64_t> &cluster_id, const Matrix<uint64_t> &binary);
     ~IVFRN();
 
-    ResultHeap search(float* query, float* rd_query, uint32_t k, uint32_t nprobe, float distK = std::numeric_limits<float>::max(), Disk_IO *read_buffer=nullptr) const;
+    ResultHeap search(float* query, float* rd_query, uint64_t k, uint64_t nprobe, float distK = std::numeric_limits<float>::max(), Disk_IO *read_buffer=nullptr) const;
 
-    static void scan(ResultHeap &KNNs, float &distK, uint32_t k, \
-                        uint64_t *quant_query, uint64_t *ptr_binary_code,  uint32_t len, Factor *ptr_fac, \
+    static void scan(ResultHeap &KNNs, float &distK, uint64_t k, \
+                        uint64_t *quant_query, uint64_t *ptr_binary_code,  uint64_t len, Factor *ptr_fac, \
                         const float  sqr_y, const float vl, const float  width, const float sumq,\
-                        float *query, float *data, uint32_t *id);
+                        float *query, float *data, uint64_t *id);
 
-    static void fast_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
-                        uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac, \
+    static void fast_scan(ResultHeap &KNNs, float &distK, uint64_t k, \
+                        uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac, \
                         const float  sqr_y, const float vl, const float  width, const float sumq,\
-                        float *query, float *data, uint32_t *id);
+                        float *query, float *data, uint64_t *id);
 
-    static void disk_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
-                        uint8_t *LUT, uint8_t *packed_code, uint32_t len, Factor *ptr_fac, \
+    static void disk_scan(ResultHeap &KNNs, float &distK, uint64_t k, \
+                        uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac, \
                         const float  sqr_y, const float vl, const float  width, const float sumq,\
-                        float *query, float *data, uint32_t *id, Disk_IO *read_buffer);
+                        float *query, float *data, uint64_t *id, Disk_IO *read_buffer);
 
     void save(char* filename);
     void load(char* filename);
 };
 
 // scan impl
-template <uint32_t D, uint32_t B>
-void IVFRN<D, B>::scan(ResultHeap &KNNs, float &distK, uint32_t k, \
-                        uint64_t *quant_query, uint64_t *ptr_binary_code,  uint32_t len, Factor *ptr_fac, \
+template <uint64_t D, uint64_t B>
+void IVFRN<D, B>::scan(ResultHeap &KNNs, float &distK, uint64_t k, \
+                        uint64_t *quant_query, uint64_t *ptr_binary_code,  uint64_t len, Factor *ptr_fac, \
                         const float sqr_y, const float vl, const float width, const float sumq, \
-                        float *query, float *data, uint32_t *id){
+                        float *query, float *data, uint64_t *id){
 
-    constexpr int SIZE = 32;
+    constexpr int64_t SIZE = 32;
     float y = std::sqrt(sqr_y);
     float res[SIZE];
     float *ptr_res = &res[0];
-    int it = len / SIZE;
+    int64_t it = len / SIZE;
 
-    for(int i=0;i<it;i++){
+    for(int64_t i=0;i<it;i++){
         ptr_res = &res[0];
-        for(int j=0;j<SIZE;j++){
+        for(int64_t j=0;j<SIZE;j++){
             float tmp_dist = (ptr_fac -> sqr_x) + sqr_y + ptr_fac -> factor_ppc * vl + (space.ip_byte_bin(quant_query, ptr_binary_code) * 2 -sumq) * (ptr_fac -> factor_ip) * width;
             float error_bound = y * (ptr_fac -> error);
             *ptr_res = tmp_dist - error_bound;
@@ -110,7 +110,7 @@ void IVFRN<D, B>::scan(ResultHeap &KNNs, float &distK, uint32_t k, \
         }
 
         ptr_res = &res[0];
-        for(int j=0;j<SIZE;j++){
+        for(int64_t j=0;j<SIZE;j++){
             if(*ptr_res < distK){
 #ifdef COUNT_SCAN
                 count_scan++;
@@ -129,7 +129,7 @@ void IVFRN<D, B>::scan(ResultHeap &KNNs, float &distK, uint32_t k, \
     }
 
     ptr_res = &res[0];
-    for(int i=it * SIZE;i<len;i++){
+    for(int64_t i=it * SIZE;i<len;i++){
         float tmp_dist = (ptr_fac -> sqr_x) + sqr_y + ptr_fac -> factor_ppc * vl + (space.ip_byte_bin(quant_query, ptr_binary_code) * 2 -sumq) * (ptr_fac -> factor_ip) * width;
         float error_bound = y * (ptr_fac -> error);
         *ptr_res = tmp_dist - error_bound;
@@ -142,7 +142,7 @@ void IVFRN<D, B>::scan(ResultHeap &KNNs, float &distK, uint32_t k, \
     }
 
     ptr_res = &res[0];
-    for(int i=it * SIZE;i<len;i++){
+    for(int64_t i=it * SIZE;i<len;i++){
         if(*ptr_res < distK){
 #ifdef COUNT_SCAN
             count_scan++;
@@ -160,20 +160,20 @@ void IVFRN<D, B>::scan(ResultHeap &KNNs, float &distK, uint32_t k, \
     }
 }
 
-template <uint32_t D, uint32_t B>
-void IVFRN<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
-                        uint8_t *LUT, uint8_t *packed_code,  uint32_t len, Factor *ptr_fac, \
+template <uint64_t D, uint64_t B>
+void IVFRN<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint64_t k, \
+                        uint8_t *LUT, uint8_t *packed_code,  uint64_t len, Factor *ptr_fac, \
                         const float sqr_y, const float vl, const float width, const float sumq, \
-                        float *query, float *data, uint32_t *id){
+                        float *query, float *data, uint64_t *id){
 
-    for(int i=0;i<B/4*16;i++)LUT[i] *= 2;
+    for(int64_t i=0;i<B/4*16;i++)LUT[i] *= 2;
 
     float y = std::sqrt(sqr_y);
 
-    constexpr uint32_t SIZE = 32;
-    uint32_t it = len / SIZE;
-    uint32_t remain = len - it * SIZE;
-    uint32_t nblk_remain = (remain + 31) / 32;
+    constexpr uint64_t SIZE = 32;
+    uint64_t it = len / SIZE;
+    uint64_t remain = len - it * SIZE;
+    uint64_t nblk_remain = (remain + 31) / 32;
 
     while(it --){
         float low_dist[SIZE];
@@ -182,7 +182,7 @@ void IVFRN<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
         accumulate<B>((SIZE / 32), packed_code, LUT, result);
         packed_code += SIZE * B / 8;
 
-        for(int i=0;i<SIZE;i++){
+        for(int64_t i=0;i<SIZE;i++){
             float tmp_dist = (ptr_fac -> sqr_x) + sqr_y + ptr_fac -> factor_ppc * vl + (result[i]-sumq) * (ptr_fac -> factor_ip) * width;
             float error_bound = y * (ptr_fac -> error);
             *ptr_low_dist = tmp_dist - error_bound;
@@ -193,7 +193,7 @@ void IVFRN<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
 #endif
         }
         ptr_low_dist = &low_dist[0];
-        for(int j=0;j<SIZE;j++){
+        for(int64_t j=0;j<SIZE;j++){
             if(*ptr_low_dist < distK){
 
                 float gt_dist = sqr_dist<D>(query, data);
@@ -218,7 +218,7 @@ void IVFRN<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
         uint16_t PORTABLE_ALIGN32 result[SIZE];
         accumulate<B>(nblk_remain, packed_code, LUT, result);
 
-        for(int i=0;i<remain;i++){
+        for(int64_t i=0;i<remain;i++){
             float tmp_dist = (ptr_fac -> sqr_x) + sqr_y + ptr_fac -> factor_ppc * vl + (result[i] - sumq) * ptr_fac -> factor_ip * width;
             float error_bound = y * (ptr_fac -> error);
 #ifdef COUNT_SCAN
@@ -231,7 +231,7 @@ void IVFRN<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
             ptr_low_dist ++;
         }
         ptr_low_dist = &low_dist[0];
-        for(int i=0;i<remain;i++){
+        for(int64_t i=0;i<remain;i++){
             if(*ptr_low_dist < distK){
 
                 float gt_dist = sqr_dist<D>(query, data);
@@ -251,18 +251,18 @@ void IVFRN<D, B>::fast_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
     }
 }
 
-template <uint32_t D, uint32_t B>
-void IVFRN<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
-                        uint8_t *LUT, uint8_t *packed_code,  uint32_t len, Factor *ptr_fac, \
+template <uint64_t D, uint64_t B>
+void IVFRN<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint64_t k, \
+                        uint8_t *LUT, uint8_t *packed_code,  uint64_t len, Factor *ptr_fac, \
                         const float sqr_y, const float vl, const float width, const float sumq, \
-                        float *query, float *data, uint32_t *id, Disk_IO *read_buffer){
+                        float *query, float *data, uint64_t *id, Disk_IO *read_buffer){
     float buffer[D];
-    for(int i=0;i<B/4*16;i++)LUT[i] *= 2;
+    for(int64_t i=0;i<B/4*16;i++)LUT[i] *= 2;
     float y = std::sqrt(sqr_y);
-    constexpr uint32_t SIZE = 32;
-    uint32_t it = len / SIZE;
-    uint32_t remain = len - it * SIZE;
-    uint32_t nblk_remain = (remain + 31) / 32;
+    constexpr uint64_t SIZE = 32;
+    uint64_t it = len / SIZE;
+    uint64_t remain = len - it * SIZE;
+    uint64_t nblk_remain = (remain + 31) / 32;
 
     while(it --){
         float low_dist[SIZE];
@@ -271,7 +271,7 @@ void IVFRN<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
         accumulate<B>((SIZE / 32), packed_code, LUT, result);
         packed_code += SIZE * B / 8;
 
-        for(int i=0;i<SIZE;i++){
+        for(int64_t i=0;i<SIZE;i++){
             float tmp_dist = (ptr_fac -> sqr_x) + sqr_y + ptr_fac -> factor_ppc * vl + (result[i]-sumq) * (ptr_fac -> factor_ip) * width;
             float error_bound = y * (ptr_fac -> error);
             *ptr_low_dist = tmp_dist - error_bound;
@@ -282,7 +282,7 @@ void IVFRN<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
 #endif
         }
         ptr_low_dist = &low_dist[0];
-        for(int j=0;j<SIZE;j++){
+        for(int64_t j=0;j<SIZE;j++){
             if(*ptr_low_dist < distK){
                 read_buffer->single_disk_io(*id, buffer);
                 float gt_dist = sqr_dist<D>(query, buffer);
@@ -307,7 +307,7 @@ void IVFRN<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
         uint16_t PORTABLE_ALIGN32 result[SIZE];
         accumulate<B>(nblk_remain, packed_code, LUT, result);
 
-        for(int i=0;i<remain;i++){
+        for(int64_t i=0;i<remain;i++){
             float tmp_dist = (ptr_fac -> sqr_x) + sqr_y + ptr_fac -> factor_ppc * vl + (result[i] - sumq) * ptr_fac -> factor_ip * width;
             float error_bound = y * (ptr_fac -> error);
 #ifdef COUNT_SCAN
@@ -320,7 +320,7 @@ void IVFRN<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
             ptr_low_dist ++;
         }
         ptr_low_dist = &low_dist[0];
-        for(int i=0;i<remain;i++){
+        for(int64_t i=0;i<remain;i++){
             if(*ptr_low_dist < distK){
                 read_buffer->single_disk_io(*id, buffer);
                 float gt_dist = sqr_dist<D>(query, buffer);
@@ -342,15 +342,15 @@ void IVFRN<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint32_t k, \
 
 
 // search impl
-template <uint32_t D, uint32_t B>
-ResultHeap IVFRN<D, B>::search(float* query, float* rd_query, uint32_t k, uint32_t nprobe, float distK, Disk_IO *read_buffer) const{
+template <uint64_t D, uint64_t B>
+ResultHeap IVFRN<D, B>::search(float* query, float* rd_query, uint64_t k, uint64_t nprobe, float distK, Disk_IO *read_buffer) const{
     // The default value of distK is +inf
     ResultHeap KNNs;
     // ===========================================================================================================
     // Find out the nearest N_{probe} centroids to the query vector.
     Result centroid_dist[numC];
     float * ptr_c = centroid;
-    for(int i=0;i<C;i++){
+    for(int64_t i=0;i<C;i++){
         centroid_dist[i].first = sqr_dist<B>(rd_query, ptr_c);
         centroid_dist[i].second = i;
         ptr_c += B;
@@ -362,8 +362,8 @@ ResultHeap IVFRN<D, B>::search(float* query, float* rd_query, uint32_t k, uint32
     Result *ptr_centroid_dist = (&centroid_dist[0]);
     uint8_t  PORTABLE_ALIGN64 byte_query[B];
 
-    for(int pb=0;pb<nprobe;pb++){
-        uint32_t c = ptr_centroid_dist -> second;
+    for(int64_t pb=0;pb<nprobe;pb++){
+        uint64_t c = ptr_centroid_dist -> second;
         float sqr_y = ptr_centroid_dist -> first;
         ptr_centroid_dist ++;
 
@@ -372,7 +372,7 @@ ResultHeap IVFRN<D, B>::search(float* query, float* rd_query, uint32_t k, uint32
         float vl, vr;
         space.range(rd_query, centroid + c * B, vl, vr);
         float width = (vr - vl) / ((1 << B_QUERY) - 1);
-        uint32_t sum_q = 0;
+        uint64_t sum_q = 0;
         space.quantize(byte_query, rd_query, centroid + c * B, u, vl, width, sum_q);
 
 #if defined(SCAN)               // Binary String Representation
@@ -404,20 +404,20 @@ ResultHeap IVFRN<D, B>::search(float* query, float* rd_query, uint32_t k, uint32
 
 // ==============================================================================================================================
 // Save and Load Functions
-template <uint32_t D, uint32_t B>
+template <uint64_t D, uint64_t B>
 void IVFRN<D, B>::save(char * filename){
     std::ofstream output(filename, std::ios::binary);
 
-    uint32_t d = D;
-    uint32_t b = B;
-    output.write((char *) &N, sizeof(uint32_t));
-    output.write((char *) &d, sizeof(uint32_t));
-    output.write((char *) &C, sizeof(uint32_t));
-    output.write((char *) &b, sizeof(uint32_t));
+    uint64_t d = D;
+    uint64_t b = B;
+    output.write((char *) &N, sizeof(uint64_t));
+    output.write((char *) &d, sizeof(uint64_t));
+    output.write((char *) &C, sizeof(uint64_t));
+    output.write((char *) &b, sizeof(uint64_t));
 
-    output.write((char *) start     , C * sizeof(uint32_t));
-    output.write((char *) len       , C * sizeof(uint32_t));
-    output.write((char *) id        , N * sizeof(uint32_t));
+    output.write((char *) start     , C * sizeof(uint64_t));
+    output.write((char *) len       , C * sizeof(uint64_t));
+    output.write((char *) id        , N * sizeof(uint64_t));
     output.write((char *) dist_to_c , N * sizeof(float));
     output.write((char *) x0        , N * sizeof(float));
 
@@ -431,7 +431,7 @@ void IVFRN<D, B>::save(char * filename){
 }
 
 // load impl
-template <uint32_t D, uint32_t B>
+template <uint64_t D, uint64_t B>
 void IVFRN<D, B>::load(char * filename){
     std::ifstream input(filename, std::ios::binary);
     //std::cerr << filename << std::endl;
@@ -439,12 +439,12 @@ void IVFRN<D, B>::load(char * filename){
     if (!input.is_open())
         throw std::runtime_error("Cannot open file");
 
-    uint32_t d;
-    uint32_t b;
-    input.read((char *) &N, sizeof(uint32_t));
-    input.read((char *) &d, sizeof(uint32_t));
-    input.read((char *) &C, sizeof(uint32_t));
-    input.read((char *) &b, sizeof(uint32_t));
+    uint64_t d;
+    uint64_t b;
+    input.read((char *) &N, sizeof(uint64_t));
+    input.read((char *) &d, sizeof(uint64_t));
+    input.read((char *) &C, sizeof(uint64_t));
+    input.read((char *) &b, sizeof(uint64_t));
 
     std::cerr << d << std::endl;
     assert(d == D);
@@ -455,50 +455,50 @@ void IVFRN<D, B>::load(char * filename){
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> uniform(0.0, 1.0);
-    for(int i=0;i<B;i++)u[i] = uniform(gen);
+    for(int64_t i=0;i<B;i++)u[i] = uniform(gen);
 #else
-    for(int i=0;i<B;i++)u[i] = 0.5;
+    for(int64_t i=0;i<B;i++)u[i] = 0.5;
 #endif
 
     centroid     = new float [C * B];
 
-    binary_code  = static_cast<uint64_t*>(aligned_alloc(256, N * B / 64 * sizeof(uint64_t)));
+    binary_code  = static_cast<uint64_t*>(aligned_alloc(256, (size_t) N * B / 64 * sizeof(uint64_t)));
 
-    start        = new uint32_t [C];
-    len          = new uint32_t [C];
-    id           = new uint32_t [N];
+    start        = new uint64_t [C];
+    len          = new uint64_t [C];
+    id           = new uint64_t [N];
     dist_to_c    = new float [N];
     x0           = new float [N];
     fac          = new Factor[N];
 
-    input.read((char *) start      , C * sizeof(uint32_t));
-    input.read((char *) len        , C * sizeof(uint32_t));
-    input.read((char *) id         , N * sizeof(uint32_t));
-    input.read((char *) dist_to_c  , N * sizeof(float));
-    input.read((char *) x0         , N * sizeof(float));
-    input.read((char *) centroid   , C * B * sizeof(float));
-    input.read((char *) binary_code, N * B / 64 * sizeof(uint64_t));
+    input.read((char *) start      , C * sizeof(uint64_t));
+    input.read((char *) len        , C * sizeof(uint64_t));
+    input.read((char *) id         , (size_t) N * sizeof(uint64_t));
+    input.read((char *) dist_to_c  , (size_t) N * sizeof(float));
+    input.read((char *) x0         , (size_t) N * sizeof(float));
+    input.read((char *) centroid   , (size_t) C * B * sizeof(float));
+    input.read((char *) binary_code, (size_t) N * B / 64 * sizeof(uint64_t));
 #ifndef DISK_SCAN
     data         = new float [N * D];
     input.read((char *) data, N * D * sizeof(float));
 #endif
 #if defined(FAST_SCAN)
-    packed_start = new uint32_t [C];
-    int cur = 0;
-    for(int i=0;i<C;i++){
+    packed_start = new uint64_t [C];
+    size_t cur = 0;
+    for(int64_t i=0;i<C;i++){
         packed_start[i] = cur;
-        cur += (len[i] + 31) / 32 * 32 * B / 8;
+        cur += ((size_t)len[i] + 31) / 32 * 32 * B / 8;
     }
     packed_code = static_cast<uint8_t*>(aligned_alloc(32, cur * sizeof(uint8_t)));
-    for(int i=0;i<C;i++){
-        pack_codes<B>(binary_code + start[i] * (B / 64), len[i], packed_code + packed_start[i]);
+    for(int64_t i=0;i<C;i++){
+        pack_codes<B>(binary_code + (size_t) start[i] * (B / 64), len[i], packed_code + packed_start[i]);
     }
 #else
     packed_start = NULL;
     packed_code  = NULL;
 #endif
     double ave_error = 0;
-    for(int i=0;i<N;i++){
+    for(int64_t i=0;i<N;i++){
         long double x_x0 = (long double) dist_to_c[i] / x0[i];
         fac[i].sqr_x = dist_to_c[i] * dist_to_c[i];
         fac[i].error = 2 * max_x1 * std::sqrt(x_x0 * x_x0 - dist_to_c[i] * dist_to_c[i]);
@@ -514,7 +514,7 @@ void IVFRN<D, B>::load(char * filename){
 
 // ==============================================================================================================================
 // Construction and Deconstruction Functions
-template <uint32_t D, uint32_t B>
+template <uint64_t D, uint64_t B>
 IVFRN<D, B>::IVFRN(){
     N = C = 0;
     start = len = id = NULL;
@@ -524,9 +524,9 @@ IVFRN<D, B>::IVFRN(){
     u = NULL;
 }
 
-template <uint32_t D, uint32_t B>
+template <uint64_t D, uint64_t B>
 IVFRN<D, B>::IVFRN(const Matrix<float> &X, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
-                   const Matrix<float> &_x0, const Matrix<uint32_t> &cluster_id, const Matrix<uint64_t> &binary){
+                   const Matrix<float> &_x0, const Matrix<uint64_t> &cluster_id, const Matrix<uint64_t> &binary){
     fac=NULL;
     u = NULL;
 
@@ -537,39 +537,39 @@ IVFRN<D, B>::IVFRN(const Matrix<float> &X, const Matrix<float> &_centroids, cons
     assert(B % 64 == 0);
     assert(B >= D);
 
-    start = new uint32_t [C];
-    len   = new uint32_t [C];
-    id    = new uint32_t [N];
+    start = new uint64_t [C];
+    len   = new uint64_t [C];
+    id    = new uint64_t [N];
     dist_to_c = new float [N];
     x0 = new float [N];
 
-    memset(len, 0, C * sizeof(uint32_t));
-    for(int i=0;i<N;i++)len[cluster_id.data[i]] ++;
-    int sum = 0;
-    for(int i=0;i<C;i++){
+    memset(len, 0, C * sizeof(uint64_t));
+    for(int64_t i=0;i<N;i++)len[cluster_id.data[i]] ++;
+    size_t sum = 0;
+    for(int64_t i=0;i<C;i++){
         start[i] = sum;
         sum += len[i];
     }
-    for(int i=0;i<N;i++){
+    for(int64_t i=0;i<N;i++){
         id[start[cluster_id.data[i]]] = i;
         dist_to_c[start[cluster_id.data[i]]] = dist_to_centroid.data[i];
         x0[start[cluster_id.data[i]]] = _x0.data[i];
         start[cluster_id.data[i]]++;
     }
-    for(int i=0;i<C;i++){
+    for(int64_t i=0;i<C;i++){
         start[i] -= len[i];
     }
 
-    centroid        = new float [C * B];
-    data            = new float [N * D];
-    binary_code     = new uint64_t [N * B / 64];
+    centroid        = new float [(size_t) C * B];
+    data            = new float [(size_t) N * D];
+    binary_code     = new uint64_t [(size_t) N * B / 64];
 
-    std::memcpy(centroid, _centroids.data, C * B * sizeof(float));
+    std::memcpy(centroid, _centroids.data, (size_t) C * B * sizeof(float));
     float * data_ptr = data;
     uint64_t * binary_code_ptr = binary_code;
 
-    for(int i=0;i<N;i++){
-        int x = id[i];
+    for(int64_t i=0;i<N;i++){
+        size_t x = id[i];
 #ifndef DISK_SCAN
         std::memcpy(data_ptr, X.data + x * D, D * sizeof(float));
 #endif
@@ -579,7 +579,7 @@ IVFRN<D, B>::IVFRN(const Matrix<float> &X, const Matrix<float> &_centroids, cons
     }
 }
 
-template <uint32_t D, uint32_t B>
+template <uint64_t D, uint64_t B>
 IVFRN<D, B>::~IVFRN(){
     if(id != NULL)          delete [] id;
     if(dist_to_c != NULL)   delete [] dist_to_c;

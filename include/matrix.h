@@ -161,19 +161,19 @@ Matrix<T>::Matrix(char *data_file_path) {
         std::cout << "open file error" << std::endl;
         exit(-1);
     }
-    in.read((char *) &d, 4);
+    in.read((char *) &d, sizeof(T));
 
     std::cerr << "Dimensionality - " << d << std::endl;
     in.seekg(0, std::ios::end);
     std::ios::pos_type ss = in.tellg();
     size_t fsize = (size_t) ss;
-    n = (size_t) (fsize / (sizeof(T) * d + 4));
+    n = (size_t) (fsize / (sizeof(T) * d + sizeof(T)));
     // n = (size_t)(fsize / (d + 1) / 4);
-    data = new T[(size_t) n * (size_t) d + 10];
+    data = new T[(size_t) n * (size_t) d];
     std::cerr << "Cardinality - " << n << std::endl;
     in.seekg(0, std::ios::beg);
     for (size_t i = 0; i < n; i++) {
-        in.seekg(4, std::ios::cur);
+        in.seekg(sizeof(T), std::ios::cur);
         in.read((char *) (data + i * d), d * sizeof(T));
     }
     in.close();

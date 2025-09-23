@@ -1,7 +1,6 @@
 #define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
 #define FAST_SCAN
-#define COUNT_SCAN
 #include <iostream>
 #include <fstream>
 
@@ -21,7 +20,7 @@ long double rotation_time = 0;
 int probe_base = 50;
 char data_path[256] = "";
 
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsigned> &G,
           const IVFRES<D, B> &ivf, int k) {
     float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
@@ -177,7 +176,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "dataset:: " << str_data << std::endl;
 #ifndef LARGE_DATA
     if (str_data == "msong") {
-        const uint32_t BB = 128, DIM = 420;
+        const uint64_t BB = 128, DIM = 420;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 5;
@@ -185,7 +184,7 @@ int main(int argc, char *argv[]) {
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "gist") {
-        const uint32_t BB = 128, DIM = 960;
+        const uint64_t BB = 128, DIM = 960;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 25;
@@ -193,7 +192,7 @@ int main(int argc, char *argv[]) {
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "deep1M") {
-        const uint32_t BB = 128, DIM = 256;
+        const uint64_t BB = 128, DIM = 256;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 15;
@@ -201,7 +200,7 @@ int main(int argc, char *argv[]) {
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "tiny5m") {
-        const uint32_t BB = 128, DIM = 384;
+        const uint64_t BB = 128, DIM = 384;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 25;
@@ -209,7 +208,7 @@ int main(int argc, char *argv[]) {
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "word2vec") {
-        const uint32_t BB = 256, DIM = 300;
+        const uint64_t BB = 256, DIM = 300;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 15;
@@ -217,7 +216,7 @@ int main(int argc, char *argv[]) {
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "sift") {
-        const uint32_t BB = 64, DIM = 128;
+        const uint64_t BB = 64, DIM = 128;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 8;
@@ -225,7 +224,7 @@ int main(int argc, char *argv[]) {
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "glove2.2m") {
-        const uint32_t BB = 256, DIM = 300;
+        const uint64_t BB = 256, DIM = 300;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 15;
@@ -233,23 +232,23 @@ int main(int argc, char *argv[]) {
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "OpenAI-1536") {
-        const uint32_t BB = 512, DIM = 1536;
+        const uint64_t BB = 512, DIM = 1536;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
-        var_count = 10;
+        var_count = 20;
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "OpenAI-3072") {
-        const uint32_t BB = 512, DIM = 3072;
+        const uint64_t BB = 512, DIM = 3072;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
-        var_count = 10;
+        var_count = 20;
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "msmarc-small") {
-        const uint32_t BB = 512, DIM = 1024;
+        const uint64_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
@@ -257,7 +256,7 @@ int main(int argc, char *argv[]) {
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "yt1m") {
-        const uint32_t BB = 512, DIM = 1024;
+        const uint64_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
@@ -266,7 +265,7 @@ int main(int argc, char *argv[]) {
     }
 #else
     if (str_data == "msmarc") {
-        const uint32_t BB = 512, DIM = 1024;
+        const uint64_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 100;
@@ -274,7 +273,7 @@ int main(int argc, char *argv[]) {
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "tiny5m") {
-        const uint32_t BB = 128, DIM = 384;
+        const uint64_t BB = 128, DIM = 384;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 100;

@@ -1,6 +1,5 @@
 #define EIGEN_DONT_PARALLELIZE
 #define USE_AVX2
-//#define COUNT_SCAN
 
 #include <iostream>
 #include <fstream>
@@ -21,7 +20,7 @@ long double rotation_time = 0;
 int probe_base = 50;
 char data_path[256] = "";
 
-template<uint32_t D, uint32_t B>
+template<uint64_t D, uint64_t B>
 void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsigned> &G,
           const IVFRN<D, B> &ivf, int k) {
     float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
@@ -161,77 +160,77 @@ int main(int argc, char *argv[]) {
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
     if (str_data == "msong") {
-        const uint32_t BB = 448, DIM = 420;
+        const uint64_t BB = 448, DIM = 420;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 5;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "gist") {
-        const uint32_t BB = 960, DIM = 960;
+        const uint64_t BB = 960, DIM = 960;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 25;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "deep1M") {
-        const uint32_t BB = 256, DIM = 256;
+        const uint64_t BB = 256, DIM = 256;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 15;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "tiny5m") {
-        const uint32_t BB = 384, DIM = 384;
+        const uint64_t BB = 384, DIM = 384;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 25;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "word2vec") {
-        const uint32_t BB = 320, DIM = 300;
+        const uint64_t BB = 320, DIM = 300;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 15;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "sift") {
-        const uint32_t BB = 128, DIM = 128;
+        const uint64_t BB = 128, DIM = 128;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 8;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "glove2.2m") {
-        const uint32_t BB = 320, DIM = 300;
+        const uint64_t BB = 320, DIM = 300;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 15;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "OpenAI-1536") {
-        const uint32_t BB = 1536, DIM = 1536;
+        const uint64_t BB = 1536, DIM = 1536;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "OpenAI-3072") {
-        const uint32_t BB = 3072, DIM = 3072;
+        const uint64_t BB = 3072, DIM = 3072;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "msmarc-small") {
-        const uint32_t BB = 1024, DIM = 1024;
+        const uint64_t BB = 1024, DIM = 1024;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
         test(Q, RandQ, G, ivf, subk);
     }
     if (str_data == "yt1m") {
-        const uint32_t BB = 1024, DIM = 1024;
+        const uint64_t BB = 1024, DIM = 1024;
         IVFRN<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;

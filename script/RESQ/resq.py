@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     X = read_fvecs(data_path)
     centroids = read_fvecs(centroids_path)
-    cluster_id = read_ivecs(cluster_id_path)
+    cluster_id = I64vecs_read(cluster_id_path)
     X = X[:, :bits]
     D = X.shape[1]
     B = (D + 63) // 64 * 64
@@ -82,6 +82,6 @@ if __name__ == "__main__":
 
     # Output
     to_fvecs(randomized_centroid_path, CP)
-    to_Ivecs(RN_path, uint64_XP)
+    I64vecs_write(RN_path, uint64_XP)
     to_fvecs(x0_path, x0)
     to_fvecs(projection_path, P)

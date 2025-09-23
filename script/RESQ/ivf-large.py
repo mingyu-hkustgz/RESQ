@@ -36,5 +36,5 @@ if __name__ == '__main__':
     dist_to_centroid = dist_to_centroid ** 0.5
 
     to_fvecs(dist_to_centroid_path, dist_to_centroid)
-    to_ivecs(cluster_id_path, cluster_id)
+    I64vecs_write(cluster_id_path, cluster_id)
     to_fvecs(centroids_path, centroids)

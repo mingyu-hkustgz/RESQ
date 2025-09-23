@@ -23,7 +23,7 @@ def GenerateBinaryCode(X, P):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='random projection')
-    parser.add_argument('-d', '--dataset', help='dataset', default='gist')
+    parser.add_argument('-d', '--dataset', help='dataset', default='OpenAI-1536')
     args = vars(parser.parse_args())
     dataset = args['dataset']
     # path
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     X          = read_fvecs(data_path)
     centroids  = read_fvecs(centroids_path)
-    cluster_id = read_ivecs(cluster_id_path)
+    cluster_id = I64vecs_read(cluster_id_path)
 
     D = X.shape[1]
     B = (D + 63) // 64 * 64
@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     # Output
     to_fvecs(randomized_centroid_path, CP)
-    to_Ivecs(RN_path                 , uint64_XP)
+    I64vecs_write(RN_path            , uint64_XP)
     to_fvecs(x0_path                 , x0)
     to_fvecs(projection_path         , P)
 

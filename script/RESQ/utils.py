@@ -66,6 +66,11 @@ def ivecs_read(fname):
     d = a[0]
     return a.reshape(-1, d + 1)[:, 1:].copy()
 
+def I64vecs_read(fname):
+    a = np.fromfile(fname, dtype='int64')
+    d = a[0]
+    return a.reshape(-1, d + 1)[:, 1:].copy()
+
 
 def fvecs_read(fname):
     return ivecs_read(fname).view('float32')
@@ -84,6 +89,13 @@ def fvecs_mmap(fname):
 def ivecs_write(fname, m):
     n, d = m.shape
     m1 = np.empty((n, d + 1), dtype='int32')
+    m1[:, 0] = d
+    m1[:, 1:] = m
+    m1.tofile(fname)
+
+def I64vecs_write(fname, m):
+    n, d = m.shape
+    m1 = np.empty((n, d + 1), dtype='int64')
     m1[:, 0] = d
     m1[:, 1:] = m
     m1.tofile(fname)

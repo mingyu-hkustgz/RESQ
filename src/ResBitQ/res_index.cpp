@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     Matrix<float> dist_to_centroid(dist_to_centroid_path);
 
     sprintf(cluster_id_path, "%sp%s_cluster_id_%d.ivecs", source, dataset, numC);
-    Matrix<uint32_t> cluster_id(cluster_id_path);
+    Matrix<uint64_t> cluster_id(cluster_id_path);
 
     sprintf(binary_path, "%sRES_Rand_C%d_B%d.Ivecs", source, numC, bit);
     Matrix<uint64_t> binary(binary_path);
@@ -95,68 +95,68 @@ int main(int argc, char *argv[]) {
     std::cerr << "dataset:: " << str_data << std::endl;
 #ifndef LARGE_DATA
     if (str_data == "msong") {
-        const uint32_t BB = 128, DIM = 420;
+        const uint64_t BB = 128, DIM = 420;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "gist") {
-        const uint32_t BB = 128, DIM = 960;
+        const uint64_t BB = 128, DIM = 960;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "deep1M") {
-        const uint32_t BB = 128, DIM = 256;
+        const uint64_t BB = 128, DIM = 256;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "tiny5m") {
-        const uint32_t BB = 128, DIM = 384;
+        const uint64_t BB = 128, DIM = 384;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "word2vec") {
-        const uint32_t BB = 256, DIM = 300;
+        const uint64_t BB = 256, DIM = 300;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "sift") {
-        const uint32_t BB = 64, DIM = 128;
+        const uint64_t BB = 64, DIM = 128;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "glove2.2m") {
-        const uint32_t BB = 256, DIM = 300;
+        const uint64_t BB = 256, DIM = 300;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "OpenAI-1536") {
-        const uint32_t BB = 512, DIM = 1536;
+        const uint64_t BB = 512, DIM = 1536;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "OpenAI-3072") {
-        const uint32_t BB = 512, DIM = 3072;
+        const uint64_t BB = 512, DIM = 3072;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "msmarc-small") {
-        const uint32_t BB = 512, DIM = 1024;
+        const uint64_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "yt1m") {
-        const uint32_t BB = 512, DIM = 1024;
+        const uint64_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
 #else
     if (str_data == "msmarc") {
-        const uint32_t BB = 512, DIM = 1024;
+        const uint64_t BB = 512, DIM = 1024;
         IVFRES<DIM, BB> ivf(data_path, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }
     if (str_data == "tiny5m") {
-        const uint32_t BB = 128, DIM = 384;
+        const uint64_t BB = 128, DIM = 384;
         IVFRES<DIM, BB> ivf(data_path, C, dist_to_centroid, x0, cluster_id, binary, M);
         ivf.save(index_path);
     }

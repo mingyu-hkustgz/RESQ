@@ -37,14 +37,7 @@ for data in "${datasets[@]}"; do
       P=30
     fi
     res="${result_path}/recall@${K}/${data}/"
-    ./cmake-build-debug/src/rabit_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
-    ./cmake-build-debug/src/rabit_fast_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
+    ./build/src/rabit_fast_scan_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
 
-    for (( probe=${P}; probe<=${P}*20; probe+=${P}))
-    do
-      echo "disk probe ${probe}"
-      sync; echo 3 > /proc/sys/vm/drop_caches   #drop cache
-      ./cmake-build-debug/src/rabit_fast_disk_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B} -p ${probe}
-    done
   done
 done
