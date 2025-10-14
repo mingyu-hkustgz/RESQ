@@ -1,7 +1,7 @@
 source set.sh
 
 for data in "${datasets[@]}"; do
-  for K in {20,100}; do
+  for K in 20; do
     if [ $data == "msong" ]; then
       B=128
       P=5
@@ -9,7 +9,7 @@ for data in "${datasets[@]}"; do
       B=128
       P=25
     elif [ $data == "gist" ]; then
-      B=128
+      B=$BB
       P=15
     elif [ $data == "tiny5m" ]; then
       B=128
@@ -29,8 +29,8 @@ for data in "${datasets[@]}"; do
     elif [ $data == "OpenAI-3072" ]; then
       B=512
       P=30
-    elif [ $data == "msmarc-small" ]; then
-      B=512
+    elif [ $data == "msmarc10m" ]; then
+      B=128
       P=30
     elif [ $data == "yt1m" ]; then
       B=512
@@ -39,6 +39,5 @@ for data in "${datasets[@]}"; do
     res="${result_path}/recall@${K}/${data}/"
     ./build/src/res_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
     ./build/src/res_split_search -d ${data} -k ${K} -r ${res} -s "./DATA/${data}/" -b ${B}
-
   done
 done

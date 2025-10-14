@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     int subk = 0;
 
     while (iarg != -1) {
-        iarg = getopt_long(argc, argv, "d:r:k:s:b:", longopts, &ind);
+        iarg = getopt_long(argc, argv, "d:r:k:s:b:c:", longopts, &ind);
         switch (iarg) {
             case 'k':
                 if (optarg)subk = atoi(optarg);
@@ -111,6 +111,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'b':
                 if (optarg) bit = atoi(optarg);
+                break;
+            case 'c':
+                if (optarg) numC = atoi(optarg);
                 break;
         }
     }
@@ -141,17 +144,17 @@ int main(int argc, char *argv[]) {
 
     char index_path[256] = "";
 #ifdef RESIDUAL_SPLIT
-    sprintf(index_path, "%sivf_split%d_B%d.index", source, numC, bit);
+    sprintf(index_path, "%sivf_split%ld_B%d.index", source, numC, bit);
 #else
-    sprintf(index_path, "%sivf_res%d_B%d.index", source, numC, bit);
+    sprintf(index_path, "%sivf_res%ld_B%d.index", source, numC, bit);
 #endif
 
     std::cerr << index_path << std::endl;
     char result_file_view[256] = "";
 #if defined(RESIDUAL_SPLIT)
-    sprintf(result_file_view, "%s%s_ivf_split_scan.log", result_path, dataset, numC, bit);
+    sprintf(result_file_view, "%s%s_ivf_split_scan_%ld_%d.log", result_path, dataset, numC, bit);
 #else
-    sprintf(result_file_view, "%s%s_ivf_res_scan.log", result_path, dataset, numC, bit);
+    sprintf(result_file_view, "%s%s_ivf_res_scan_%ld_%d.log", result_path, dataset, numC, bit);
 #endif
     std::cerr << result_file_view << std::endl;
     std::cerr << "Loading Succeed!" << std::endl;
@@ -174,7 +177,6 @@ int main(int argc, char *argv[]) {
     rotation_time = usr_t * 1e6 / Q.n;
     std::string str_data(dataset);
     std::cerr << "dataset:: " << str_data << std::endl;
-#ifndef LARGE_DATA
     if (str_data == "msong") {
         const uint64_t BB = 128, DIM = 420;
         IVFRES<DIM, BB> ivf;
@@ -184,7 +186,7 @@ int main(int argc, char *argv[]) {
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "gist") {
-        const uint64_t BB = 128, DIM = 960;
+        const uint64_t BB = 320, DIM = 960;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 25;
@@ -247,12 +249,12 @@ int main(int argc, char *argv[]) {
         var_count = 20;
         test(PCAQ, RandQ, G, ivf, subk);
     }
-    if (str_data == "msmarc-small") {
-        const uint64_t BB = 512, DIM = 1024;
+    if (str_data.find("msmarc") != std::string::npos) {
+        const uint64_t BB = 320, DIM = 1024;
         IVFRES<DIM, BB> ivf;
         ivf.load(index_path);
         probe_base = 30;
-        var_count = 10;
+        var_count = 20;
         test(PCAQ, RandQ, G, ivf, subk);
     }
     if (str_data == "yt1m") {
@@ -263,23 +265,5 @@ int main(int argc, char *argv[]) {
         var_count = 10;
         test(PCAQ, RandQ, G, ivf, subk);
     }
-#else
-    if (str_data == "msmarc") {
-        const uint64_t BB = 512, DIM = 1024;
-        IVFRES<DIM, BB> ivf;
-        ivf.load(index_path);
-        probe_base = 100;
-        var_count = 1000;
-        test(PCAQ, RandQ, G, ivf, subk);
-    }
-    if (str_data == "tiny5m") {
-        const uint64_t BB = 128, DIM = 384;
-        IVFRES<DIM, BB> ivf;
-        ivf.load(index_path);
-        probe_base = 100;
-        var_count = 4;
-        test(PCAQ, RandQ, G, ivf, subk);
-    }
-#endif
     return 0;
 }

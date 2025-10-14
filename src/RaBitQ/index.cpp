@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     char dataset[256] = "";
     char source[256] = "";
     while (iarg != -1) {
-        iarg = getopt_long(argc, argv, "d:s:b:", longopts, &ind);
+        iarg = getopt_long(argc, argv, "d:s:b:c:", longopts, &ind);
         switch (iarg) {
             case 'd':
                 if (optarg) {
@@ -46,6 +46,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'b':
                 if (optarg) bit = atoi(optarg);
+                break;
+            case 'c':
+                if (optarg) numC = atoi(optarg);
                 break;
         }
     }
@@ -129,9 +132,14 @@ int main(int argc, char *argv[]) {
         IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
         ivf.save(index_path);
     }
-    if (str_data == "msmarc-small") {
+    if (str_data.find("msmarc") != std::string::npos) {
         const uint64_t BB = 1024, DIM = 1024;
-        IVFRN <DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
+        auto start_time = std::chrono::high_resolution_clock::now();
+        IVFRN<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary);
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+        std::ofstream out("./results/time-log/"+str_data+"/Rabit-Index-Time.log", std::ios::app);
+        out<<"Rabit Naive Index Time:"<<duration.count()<<" (s)";
         ivf.save(index_path);
     }
     if (str_data == "yt1m") {

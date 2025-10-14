@@ -26,6 +26,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='random projection')
     parser.add_argument('-d', '--dataset', help='dataset', default='gist')
     parser.add_argument('-b', '--bits', help='quantized bits', default=128)
+    parser.add_argument('-c', '--centroids', help='IVF centroids', default=4096)
     args = vars(parser.parse_args())
     dataset = args['dataset']
     bits = int(args['bits'])
@@ -33,16 +34,18 @@ if __name__ == "__main__":
     path = os.path.join(source, dataset)
     data_path = os.path.join(path, f'{dataset}_proj.fvecs')
 
-    C = 65536
+    C = int(args['centroids'])
     centroids_path = os.path.join(path, f'p{dataset}_centroid_{C}.fvecs')
     dist_to_centroid_path = os.path.join(path, f'p{dataset}_dist_to_centroid_{C}.fvecs')
     cluster_id_path = os.path.join(path, f'p{dataset}_cluster_id_{C}.ivecs')
 
-    X = fvecs_mmap(data_path)
+    X = read_fvecs(data_path)
     centroids = read_fvecs(centroids_path)
-    cluster_id = read_ivecs(cluster_id_path)
-    N, _ = X.shape
-    D = bits
+    cluster_id = I64vecs_read(cluster_id_path)
+    start = time.time()
+
+    X = X[:, :bits]
+    D = X.shape[1]
     B = (D + 63) // 64 * 64
     MAX_BD = max(D, B)
 
@@ -51,6 +54,8 @@ if __name__ == "__main__":
     RN_path = os.path.join(path, f'RES_Rand_C{C}_B{B}.Ivecs')
     x0_path = os.path.join(path, f'RES_x0_C{C}_B{B}.fvecs')
 
+    X_pad = np.pad(X, ((0, 0), (0, MAX_BD - D)), 'constant')
+    centroids_pad = np.pad(centroids, ((0, 0), (0, MAX_BD - D)), 'constant')
     np.random.seed(0)
 
     # The inverse of an orthogonal matrix equals to its transpose.
@@ -58,44 +63,35 @@ if __name__ == "__main__":
     P = P.T
 
     cluster_id = np.squeeze(cluster_id)
-    CP = np.dot(centroids, P)
-    to_fvecs(randomized_centroid_path, CP)
-    to_fvecs(projection_path, P)
+    XP = np.dot(X_pad, P)
+    CP = np.dot(centroids_pad, P)
+    XP = XP - CP[cluster_id]
+    bin_XP = (XP > 0)
 
-    if N % 1000000 == 0:
-        iter_count = int(N / 1000000)
-    else:
-        iter_count = int(N / 1000000) + 1
-    pre = 0
-    x0_list = []
-    RN_list = []
-    for i in tqdm(range(iter_count)):
-        data_seg = X[pre:pre + 1000000, :bits]
-        XP = np.dot(data_seg, P)
-        XP = XP - CP[cluster_id[pre:pre + 1000000]]
-        bin_XP = (XP > 0)
+    # The inner product between the data vector and the quantized data vector, i.e., <\bar o, o>.
+    x0 = np.sum(XP[:, :B] * (2 * bin_XP[:, :B] - 1) / B ** 0.5, axis=1, keepdims=True) / np.linalg.norm(XP, axis=1,
+                                                                                                        keepdims=True)
 
-        # The inner product between the data vector and the quantized data vector, i.e., <\bar o, o>.
-        x0 = np.sum(XP[:, :B] * (2 * bin_XP[:, :B] - 1) / B ** 0.5, axis=1, keepdims=True) / np.linalg.norm(XP, axis=1,
-                                                                                                            keepdims=True)
+    # To remove illy defined x0
+    # np.linalg.norm(XP, axis=1, keepdims=True) = 0 indicates that its estimated distance based on our method has no error.
+    # Thus, it should be good to set x0 as any finite non-zero number.
+    x0[~np.isfinite(x0)] = 0.8
 
-        # To remove illy defined x0
-        # np.linalg.norm(XP, axis=1, keepdims=True) = 0 indicates that its estimated distance based on our method has no error.
-        # Thus, it should be good to set x0 as any finite non-zero number.
-        x0[~np.isfinite(x0)] = 0.8
+    print(np.mean(x0))
 
-        print(np.mean(x0))
+    bin_XP = bin_XP[:, :B].flatten()
+    uint64_XP = np.packbits(bin_XP.reshape(-1, 8, 8)[:, ::-1]).view(np.uint64)
+    uint64_XP = uint64_XP.reshape(-1, B >> 6)
 
-        bin_XP = bin_XP[:, :B].flatten()
-        uint64_XP = np.packbits(bin_XP.reshape(-1, 8, 8)[:, ::-1]).view(np.uint64)
-        uint64_XP = uint64_XP.reshape(-1, B >> 6)
+    end = time.time()
 
-        # Output
-        RN_list.append(uint64_XP)
-        x0_list.append(x0)
-        pre += 1000000
+    # Output
+    fvecs_write(randomized_centroid_path, CP)
+    I64vecs_write(RN_path, uint64_XP)
+    fvecs_write(x0_path, x0)
+    fvecs_write(projection_path, P)
 
-    x0_final = np.vstack(x0_list)
-    RN_final = np.vstack(RN_list)
-    to_Ivecs(RN_path, RN_final)
-    to_fvecs(x0_path, x0_final)
+    time_log = f"./results/time-log/{dataset}/{dataset}-MRQ-Time.log"
+    f = open(time_log, "w")
+    print(f"{dataset} MRQ Time Cost {end - start}(s)", file=f)
+

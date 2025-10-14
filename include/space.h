@@ -20,11 +20,8 @@
 #include "utils.h"
 #include <random>
 
-#if defined(LARGE_DATA)
-const uint64_t B_QUERY = 4, numC = 65536;
-#else
-const uint64_t B_QUERY = 4, numC = 4096;
-#endif
+const uint64_t B_QUERY = 4;
+uint64_t numC = 4096;
 unsigned count_scan = 0, all_dist_count = 0;
 float var_count = 5.0;
 

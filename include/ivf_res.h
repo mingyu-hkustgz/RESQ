@@ -554,6 +554,7 @@ void IVFRES<D, B>::load(char *filename) {
         pack_codes<B>(binary_code + start[i] * (B / 64), len[i], packed_code + packed_start[i]);
     }
     double ave_error = 0;
+#pragma omp parallel for reduction(+: ave_error)
     for (int64_t i = 0; i < N; i++) {
         long double x_x0 = (long double) dist_to_c[i] / x0[i];
 #ifdef RESIDUAL_SPLIT
@@ -635,23 +636,17 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
     binary_code = new uint64_t[N * B / 64];
 
     std::memcpy(centroid, _centroids.data, C * B * sizeof(float));
-    float *data_ptr = data;
-    float *res_ptr = res_data;
-    uint64_t *binary_code_ptr = binary_code;
+#pragma omp parallel for schedule (dynamic, 144)
     for (int64_t i = 0; i < N; i++) {
         int64_t x = id[i];
 #ifdef RESIDUAL_SPLIT
-        data_ptr[0] = ip_sim<D>(X.data + x * X.d, X.data + x * X.d);
-        std::memcpy(data_ptr + 1, X.data + x * X.d, (B - 1) * sizeof(float));
-        std::memcpy(res_ptr, X.data + x * X.d + (B - 1), (D - B + 1) * sizeof(float));
-        data_ptr += B;
-        res_ptr += (D - B + 1);
+        data[i * B] = ip_sim<D>(X.data + x * X.d, X.data + x * X.d);
+        std::memcpy(data + i * B + 1, X.data + x * X.d, (B - 1) * sizeof(float));
+        std::memcpy(res_data + i *(D - B + 1), X.data + x * X.d + (B - 1), (D - B + 1) * sizeof(float));
 #else
-        std::memcpy(data_ptr, X.data + x * X.d, D * sizeof(float));
-        data_ptr += D;
+        std::memcpy(data + i * D, X.data + x * X.d, D * sizeof(float));
 #endif
-        std::memcpy(binary_code_ptr, binary.data + x * (B / 64), (B / 64) * sizeof(uint64_t));
-        binary_code_ptr += B / 64;
+        std::memcpy(binary_code + i * (B/64), binary.data + x * (B / 64), (B / 64) * sizeof(uint64_t));
     }
     std::cerr << "load finished" << std::endl;
 }

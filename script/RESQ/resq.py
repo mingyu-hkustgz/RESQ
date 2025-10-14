@@ -81,7 +81,7 @@ if __name__ == "__main__":
     uint64_XP = uint64_XP.reshape(-1, B >> 6)
 
     # Output
-    to_fvecs(randomized_centroid_path, CP)
+    fvecs_write(randomized_centroid_path, CP)
     I64vecs_write(RN_path, uint64_XP)
-    to_fvecs(x0_path, x0)
-    to_fvecs(projection_path, P)
+    fvecs_write(x0_path, x0)
+    fvecs_write(projection_path, P)

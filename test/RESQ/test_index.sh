@@ -6,7 +6,7 @@ for data in "${datasets[@]}"; do
   elif [ $data == "deep1M" ]; then
     B=128
   elif [ $data == "gist" ]; then
-    B=128
+    B=$BB
   elif [ $data == "tiny5m" ]; then
     B=128
   elif [ $data == "word2vec" ]; then
@@ -19,8 +19,8 @@ for data in "${datasets[@]}"; do
     B=512
   elif [ $data == "OpenAI-3072" ]; then
     B=512
-  elif [ $data == "msmarc-small" ]; then
-    B=512
+  elif [ $data == "msmarc10m" ]; then
+    B=128
   elif [ $data == "yt1m" ]; then
     B=512
   fi
