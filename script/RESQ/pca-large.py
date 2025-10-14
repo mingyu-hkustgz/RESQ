@@ -34,9 +34,10 @@ if __name__ == "__main__":
         pca.fit(X[:1000000])
     print("train finished")
     projection_matrix = pca.components_.T
-    pre = 0
     for i in range(0, N, 1000000):
-        X[pre:i] = np.dot(X[pre:i], projection_matrix)
+        ends = min(N, i + 1000000)
+        print(f"Processing ({i}, {ends})")
+        X[i:ends] = np.dot(X[i:ends], projection_matrix)
     mean_ = np.mean(X[:1000000], axis=0)
     var_ = np.var(X[:1000000], axis=0)
     X -= mean_
