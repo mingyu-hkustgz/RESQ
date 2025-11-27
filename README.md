@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This is the official implementation of the paper [Fast High-dimensional Approximate Nearest Neighbor Search with Efficient Index Time and Space](https://arxiv.org/abs/2411.06158).
+This is the official implementation of the paper [Fast High-dimensional Approximate Nearest Neighbor Search with Efficient Index Time and Space](https://arxiv.org/abs/2411.06158) and our VLDB submission Quantization Meets Projection: A Happy Marriage for Approximate k-Nearest Neighbor Search [Scalable Data Science].
 
 MRQ leverage leverages data distribution to achieve better distance correction and a higher vector compression ratio. It significantly outperforms state-of-the-art AKNN search methods based on graph or vector quantization, achieving up to a 3x efficiency speed-up with only 1/3 length of quantized code while maintaining the same accuracy.
 
